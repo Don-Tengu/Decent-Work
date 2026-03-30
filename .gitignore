@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+target/
+**/target/
+/frontend/dist/
+/frontend/build/
+
+# Agent tools
+.codex/
+.claude/
+.claude-code/
+.agents/
+
+# IDE and editor files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Smart contracts
+/smart-contracts/artifacts/
+/smart-contracts/cache/
+/smart-contracts/typechain-types/
+/smart-contracts/deployment.json
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+tmp/
+temp/
+

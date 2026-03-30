@@ -1,0 +1,156 @@
+type User {
+    id: ID!
+    email: String!
+    username: String!
+    role: UserRole!
+    walletAddress: String
+    profile: UserProfile
+    createdAt: String!
+}
+
+type UserProfile {
+    fullName: String
+    bio: String
+    skills: [String!]
+    hourlyRate: Float
+    profileImage: String
+}
+
+enum UserRole {
+    FREELANCER
+    CLIENT
+}
+
+type Job {
+    id: ID!
+    title: String!
+    description: String!
+    budget: Float!
+    status: JobStatus!
+    client: User!
+    bids: [Bid!]!
+    acceptedBid: Bid
+    escrowAddress: String
+    createdAt: String!
+}
+
+enum JobStatus {
+    OPEN
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+type Bid {
+    id: ID!
+    amount: Float!
+    proposal: String!
+    deliveryTime: Int!
+    status: BidStatus!
+    freelancer: User!
+    job: Job!
+    createdAt: String!
+}
+
+enum BidStatus {
+    PENDING
+    ACCEPTED
+    REJECTED
+}
+
+type Payment {
+    id: ID!
+    amount: Float!
+    status: PaymentStatus!
+    transactionHash: String
+    escrowAddress: String!
+    job: Job!
+    freelancer: User!
+    client: User!
+    createdAt: String!
+}
+
+enum PaymentStatus {
+    PENDING
+    ESCROWED
+    RELEASED
+    REFUNDED
+}
+
+type AuthPayload {
+    token: String!
+    user: User!
+}
+
+type Query {
+    # User queries
+    me: User
+    user(id: ID!): User
+
+    # Job queries
+    jobs(status: JobStatus, limit: Int, offset: Int): [Job!]!
+    job(id: ID!): Job
+    myJobs: [Job!]!
+
+    # Bid queries
+    myBids: [Bid!]!
+    jobBids(jobId: ID!): [Bid!]!
+}
+
+type Mutation {
+    # Auth
+    register(input: RegisterInput!): AuthPayload!
+    login(email: String!, password: String!): AuthPayload!
+
+    # User
+    updateProfile(input: UpdateProfileInput!): User!
+    connectWallet(walletAddress: String!): User!
+
+    # Job
+    createJob(input: CreateJobInput!): Job!
+    updateJob(id: ID!, input: UpdateJobInput!): Job!
+    cancelJob(id: ID!): Job!
+
+    # Bid
+    placeBid(input: PlaceBidInput!): Bid!
+    acceptBid(bidId: ID!): Payment!
+
+    # Payment
+    releasePayment(paymentId: ID!, transactionHash: String!): Payment!
+}
+
+input RegisterInput {
+    email: String!
+    username: String!
+    password: String!
+    role: UserRole!
+    walletAddress: String
+}
+
+input UpdateProfileInput {
+    fullName: String
+    bio: String
+    skills: [String!]
+    hourlyRate: Float
+    profileImage: String
+}
+
+input CreateJobInput {
+    title: String!
+    description: String!
+    budget: Float!
+}
+
+input UpdateJobInput {
+    title: String
+    description: String
+    budget: Float
+    status: JobStatus
+}
+
+input PlaceBidInput {
+    jobId: ID!
+    amount: Float!
+    proposal: String!
+    deliveryTime: Int!
+}

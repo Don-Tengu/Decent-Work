@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphQL 測試工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #5e3fb7;
+            color: white;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel h2 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        textarea {
+            flex: 1;
+            min-height: 300px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+
+        .variables {
+            margin-top: 10px;
+        }
+
+        .variables textarea {
+            min-height: 100px;
+        }
+
+        .token-input {
+            margin-top: 10px;
+        }
+
+        .token-input input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #5e3fb7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #4a2f92;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        .response {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .examples {
+            margin-top: 10px;
+        }
+
+        .examples select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 GraphQL 測試工具</h1>
+            <p>Web3 自由職業市場 - GraphQL API 測試</p>
+        </div>
+
+        <div class="content">
+            <div class="panel">
+                <h2>📝 查詢</h2>
+                <textarea id="query" placeholder="輸入 GraphQL 查詢...">query {
+  jobs(limit: 10) {
+    id
+    title
+    budget
+    status
+  }
+}</textarea>
+
+                <div class="variables">
+                    <h2>🔧 變量 (JSON)</h2>
+                    <textarea id="variables" placeholder='{"status": "OPEN", "limit": 10}'>{}</textarea>
+                </div>
+
+                <div class="token-input">
+                    <h2>🔑 JWT Token (可選)</h2>
+                    <input type="text" id="token" placeholder="Bearer token (登錄後獲取)">
+                </div>
+
+                <div class="examples">
+                    <h2>📚 示例查詢</h2>
+                    <select id="exampleSelect" onchange="loadExample()">
+                        <option value="">選擇示例...</option>
+                        <option value="jobs">獲取工作列表</option>
+                        <option value="register">用戶註冊</option>
+                        <option value="login">用戶登錄</option>
+                        <option value="createJob">創建工作</option>
+                        <option value="placeBid">投標工作</option>
+                        <option value="myBids">我的投標</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="executeQuery()">▶️ 執行查詢</button>
+                    <button class="secondary" onclick="clearAll()">🗑️ 清空</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>📊 響應</h2>
+                <div id="status"></div>
+                <div class="response" id="response">等待執行查詢...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const examples = {
+            jobs: {
+                query: `query Jobs($status: JobStatus, $limit: Int) {
+  jobs(status: $status, limit: $limit) {
+    id
+    title
+    description
+    budget
+    status
+    createdAt
+    client {
+      id
+      username
+    }
+  }
+}`,
+                variables: {
+                    status: "OPEN",
+                    limit: 10
+                }
+            },
+            register: {
+                query: `mutation Register($input: RegisterInput!) {
+  register(input: $input) {
+    token
+    user {
+      id
+      email
+      username
+      role
+    }
+  }
+}`,
+                variables: {
+                    input: {
+                        email: "test@example.com",
+                        username: "testuser",
+                        password: "password123",
+                        role: "FREELANCER"
+                    }
+                }
+            },
+            login: {
+                query: `mutation Login($email: String!, $password: String!) {
+  login(email: $email, password: $password) {
+    token
+    user {
+      id
+      email
+      username
+      role
+      walletAddress
+    }
+  }
+}`,
+                variables: {
+                    email: "test@example.com",
+                    password: "password123"
+                }
+            },
+            createJob: {
+                query: `mutation CreateJob($input: CreateJobInput!) {
+  createJob(input: $input) {
+    id
+    title
+    description
+    budget
+    status
+    createdAt
+  }
+}`,
+                variables: {
+                    input: {
+                        title: "Build a React Dashboard",
+                        description: "Need a modern dashboard with charts and analytics",
+                        budget: 5000.0
+                    }
+                }
+            },
+            placeBid: {
+                query: `mutation PlaceBid($input: PlaceBidInput!) {
+  placeBid(input: $input) {
+    id
+    amount
+    proposal
+    deliveryTime
+    status
+    job {
+      id
+      title
+    }
+  }
+}`,
+                variables: {
+                    input: {
+                        jobId: "1",
+                        amount: 4500.0,
+                        proposal: "I have 5 years of experience...",
+                        deliveryTime: 14
+                    }
+                }
+            },
+            myBids: {
+                query: `query MyBids {
+  myBids {
+    id
+    amount
+    proposal
+    status
+    job {
+      id
+      title
+      budget
+    }
+  }
+}`,
+                variables: {}
+            }
+        };
+
+        function loadExample() {
+            const select = document.getElementById('exampleSelect');
+            const example = examples[select.value];
+
+            if (example) {
+                document.getElementById('query').value = example.query;
+                document.getElementById('variables').value = JSON.stringify(example.variables, null, 2);
+            }
+        }
+
+        async function executeQuery() {
+            const query = document.getElementById('query').value;
+            const variablesText = document.getElementById('variables').value;
+            const token = document.getElementById('token').value;
+            const responseDiv = document.getElementById('response');
+            const statusDiv = document.getElementById('status');
+
+            let variables = {};
+            try {
+                if (variablesText.trim()) {
+                    variables = JSON.parse(variablesText);
+                }
+            } catch (e) {
+                statusDiv.innerHTML = '<div class="status error">❌ 變量 JSON 格式錯誤</div>';
+                responseDiv.textContent = e.message;
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="status">⏳ 執行中...</div>';
+            responseDiv.textContent = '請稍候...';
+
+            try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch('http://localhost:8080/graphql', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        query: query,
+                        variables: variables
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.innerHTML = `<div class="status success">✅ 成功 (${response.status})</div>`;
+                } else {
+                    statusDiv.innerHTML = `<div class="status error">❌ 錯誤 (${response.status})</div>`;
+                }
+
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status error">❌ 網絡錯誤</div>';
+                responseDiv.textContent = `錯誤: ${error.message}\n\n請確保後端服務正在運行 (http://localhost:8080)`;
+            }
+        }
+
+        function clearAll() {
+            document.getElementById('query').value = '';
+            document.getElementById('variables').value = '{}';
+            document.getElementById('token').value = '';
+            document.getElementById('response').textContent = '等待執行查詢...';
+            document.getElementById('status').innerHTML = '';
+            document.getElementById('exampleSelect').value = '';
+        }
+    </script>
+</body>
+</html>
