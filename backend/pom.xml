@@ -13,9 +13,9 @@
     </parent>
 
     <groupId>com.web3</groupId>
-    <artifactId>freelance-marketplace</artifactId>
+    <artifactId>decent-work</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>Web3 Freelance Marketplace</name>
+    <name>Decent Work</name>
     <description>Decentralized freelance marketplace with smart contract payments</description>
 
     <properties>

@@ -3,7 +3,7 @@ spring:
     name: web3-freelance-marketplace
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/freelance_marketplace
+    url: jdbc:postgresql://localhost:5432/decent_work
     username: jean
     password: zz13818411003
     driver-class-name: org.postgresql.Driver
