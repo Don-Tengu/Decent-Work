@@ -4,6 +4,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+#test
+**/test
+
 # Environment variables
 .env
 .env.local
@@ -18,6 +21,7 @@ target/
 /frontend/build/
 **/mvnw
 **/mvnw.cmd
+**/maven-wrapper.properties
 
 # Agent tools
 .codex/
