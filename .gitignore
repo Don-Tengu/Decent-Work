@@ -11,17 +11,23 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Build outputs
+# Maven/Build outputs
 target/
 **/target/
 /frontend/dist/
 /frontend/build/
+**/mvnw
+**/mvnw.cmd
 
 # Agent tools
 .codex/
 .claude/
 .claude-code/
 .agents/
+CLAUDE.md
+AGENTS.md
+.mcp.json
+
 
 # IDE and editor files
 .idea/
