@@ -6,6 +6,8 @@ yarn-error.log*
 
 #test
 **/test
+!frontend/src/test/
+!frontend/src/test/setup.js
 
 # Environment variables
 .env
@@ -31,6 +33,7 @@ target/
 CLAUDE.md
 AGENTS.md
 .mcp.json
+skills-lock.json
 
 
 # IDE and editor files
@@ -63,4 +66,5 @@ logs/
 # Temporary files
 tmp/
 temp/
-
+backend/sql
+uploads/
