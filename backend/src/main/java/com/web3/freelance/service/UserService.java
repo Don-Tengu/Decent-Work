@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -64,7 +66,7 @@ public class UserService {
             String fullName,
             String bio,
             java.util.List<String> skills,
-            Double hourlyRate,
+            BigDecimal hourlyRate,
             String profileImage
     ) {}
 }

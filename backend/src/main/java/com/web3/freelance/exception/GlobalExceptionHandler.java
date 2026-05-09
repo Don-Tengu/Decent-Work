@@ -1,5 +1,6 @@
 package com.web3.freelance.exception;
 
+import com.web3.freelance.security.JwtAuthenticationFilter;
 import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
@@ -10,9 +11,14 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.graphql.data.method.annotation.GraphQlExceptionHandler;
 import org.springframework.graphql.execution.ErrorType;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -146,15 +152,62 @@ public class GlobalExceptionHandler {
     public GraphQLError handleAccessDeniedException(AccessDeniedException ex, DataFetchingEnvironment env) {
         log.warn("Access denied: {}", ex.getMessage());
 
+        ErrorCode errorCode = resolveAccessDeniedErrorCode();
         Map<String, Object> extensions = new HashMap<>();
-        extensions.put("errorCode", ErrorCode.INSUFFICIENT_PERMISSIONS.getCode());
+        extensions.put("errorCode", errorCode.getCode());
         extensions.put("timestamp", System.currentTimeMillis());
 
         return GraphqlErrorBuilder.newError(env)
-                .message("Access denied: You don't have permission to perform this action")
-                .errorType(ErrorType.FORBIDDEN)
+                .message(authMessage(errorCode))
+                .errorType(errorCode == ErrorCode.INSUFFICIENT_PERMISSIONS ? ErrorType.FORBIDDEN : ErrorType.UNAUTHORIZED)
                 .extensions(extensions)
                 .build();
+    }
+
+    private ErrorCode resolveAccessDeniedErrorCode() {
+        ErrorCode tokenErrorCode = getTokenErrorCodeFromRequest();
+
+        if (tokenErrorCode != null) {
+            return tokenErrorCode;
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)) {
+            return ErrorCode.INSUFFICIENT_PERMISSIONS;
+        }
+
+        return ErrorCode.UNAUTHORIZED;
+    }
+
+    private ErrorCode getTokenErrorCodeFromRequest() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
+            return null;
+        }
+
+        Object errorCode = attributes.getRequest()
+                .getAttribute(JwtAuthenticationFilter.AUTH_ERROR_CODE_ATTRIBUTE);
+
+        if (ErrorCode.TOKEN_EXPIRED.getCode().equals(errorCode)) {
+            return ErrorCode.TOKEN_EXPIRED;
+        }
+
+        if (ErrorCode.TOKEN_INVALID.getCode().equals(errorCode)) {
+            return ErrorCode.TOKEN_INVALID;
+        }
+
+        return null;
+    }
+
+    private String authMessage(ErrorCode errorCode) {
+        return switch (errorCode) {
+            case TOKEN_EXPIRED -> "Your session has expired. Please login again";
+            case TOKEN_INVALID -> "Invalid authentication token";
+            case UNAUTHORIZED -> "Authentication is required";
+            case INSUFFICIENT_PERMISSIONS -> "Access denied: You don't have permission to perform this action";
+            default -> errorCode.getMessage();
+        };
     }
 
     /**

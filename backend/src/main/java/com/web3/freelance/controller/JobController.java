@@ -1,8 +1,11 @@
 package com.web3.freelance.controller;
 
 import com.web3.freelance.model.Job;
+import com.web3.freelance.model.Skill;
+import com.web3.freelance.model.SkillTaxonomyNode;
 import com.web3.freelance.model.User;
 import com.web3.freelance.service.JobService;
+import com.web3.freelance.service.SkillService;
 import com.web3.freelance.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -12,17 +15,21 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
 public class JobController {
 
     private final JobService jobService;
+    private final SkillService skillService;
     private final UserService userService;
 
     @QueryMapping
+    @PreAuthorize("isAuthenticated()")
     public List<Job> jobs(
             @Argument Job.JobStatus status,
             @Argument Integer limit,
@@ -32,6 +39,7 @@ public class JobController {
     }
 
     @QueryMapping
+    @PreAuthorize("isAuthenticated()")
     public Job job(@Argument Long id) {
         return jobService.getJobById(id);
     }
@@ -43,6 +51,18 @@ public class JobController {
         return jobService.getMyJobs(currentUser.getId());
     }
 
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    public List<Skill> skills(@Argument String query, @Argument Integer limit) {
+        return skillService.searchSkills(query, limit);
+    }
+
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    public List<SkillTaxonomyNode> skillTaxonomy() {
+        return skillService.getTaxonomyNodes();
+    }
+
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
     public Job createJob(@Argument Map<String, Object> input, Authentication authentication) {
@@ -51,7 +71,19 @@ public class JobController {
         JobService.CreateJobRequest request = new JobService.CreateJobRequest(
                 (String) input.get("title"),
                 (String) input.get("description"),
-                ((Number) input.get("budget")).doubleValue()
+                readLongList(input.get("skillIds")),
+                readStringList(input.get("customSkillNames")),
+                readEnum(input.get("scopeSize"), Job.JobScopeSize.class),
+                readInteger(input.get("scopeDurationAmount")),
+                readEnum(input.get("scopeDurationUnit"), Job.ScopeDurationUnit.class),
+                readEnum(input.get("experienceLevel"), Job.ExperienceLevel.class),
+                (Boolean) input.get("contractToHire"),
+                readEnum(input.get("budgetType"), Job.BudgetType.class),
+                readBigDecimal(input.get("hourlyRateMin")),
+                readBigDecimal(input.get("hourlyRateMax")),
+                readBigDecimal(input.get("fixedBudget")),
+                (String) input.get("currencyCode"),
+                readEnum(input.get("paymentModel"), Job.PaymentModel.class)
         );
 
         return jobService.createJob(currentUser.getId(), request);
@@ -65,7 +97,22 @@ public class JobController {
         JobService.UpdateJobRequest request = new JobService.UpdateJobRequest(
                 (String) input.get("title"),
                 (String) input.get("description"),
-                input.get("budget") != null ? ((Number) input.get("budget")).doubleValue() : null,
+                input.containsKey("skillIds") ? readLongList(input.get("skillIds")) : null,
+                input.containsKey("customSkillNames") ? readStringList(input.get("customSkillNames")) : null,
+                readEnum(input.get("scopeSize"), Job.JobScopeSize.class),
+                readInteger(input.get("scopeDurationAmount")),
+                readEnum(input.get("scopeDurationUnit"), Job.ScopeDurationUnit.class),
+                readEnum(input.get("experienceLevel"), Job.ExperienceLevel.class),
+                input.containsKey("contractToHire") ? (Boolean) input.get("contractToHire") : null,
+                readEnum(input.get("budgetType"), Job.BudgetType.class),
+                readBigDecimal(input.get("hourlyRateMin")),
+                readBigDecimal(input.get("hourlyRateMax")),
+                readBigDecimal(input.get("fixedBudget")),
+                input.containsKey("hourlyRateMin") && input.get("hourlyRateMin") == null,
+                input.containsKey("hourlyRateMax") && input.get("hourlyRateMax") == null,
+                input.containsKey("fixedBudget") && input.get("fixedBudget") == null,
+                (String) input.get("currencyCode"),
+                readEnum(input.get("paymentModel"), Job.PaymentModel.class),
                 input.get("status") != null ? Job.JobStatus.valueOf((String) input.get("status")) : null
         );
 
@@ -77,5 +124,40 @@ public class JobController {
     public Job cancelJob(@Argument Long id, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
         return jobService.cancelJob(id, currentUser.getId());
+    }
+
+    private BigDecimal readBigDecimal(Object value) {
+        return value == null ? null : new BigDecimal(value.toString());
+    }
+
+    private Integer readInteger(Object value) {
+        return value == null ? null : Integer.valueOf(value.toString());
+    }
+
+    private List<Long> readLongList(Object value) {
+        if (value == null) {
+            return null;
+        }
+        List<?> raw = (List<?>) value;
+        return raw.stream()
+                .map(item -> Long.valueOf(item.toString()))
+                .collect(Collectors.toList());
+    }
+
+    private List<String> readStringList(Object value) {
+        if (value == null) {
+            return null;
+        }
+        List<?> raw = (List<?>) value;
+        return raw.stream()
+                .map(Object::toString)
+                .collect(Collectors.toList());
+    }
+
+    private <E extends Enum<E>> E readEnum(Object value, Class<E> enumType) {
+        if (value == null) {
+            return null;
+        }
+        return Enum.valueOf(enumType, value.toString());
     }
 }

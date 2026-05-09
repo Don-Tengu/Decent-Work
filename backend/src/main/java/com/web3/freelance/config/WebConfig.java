@@ -19,6 +19,12 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins("*")
                 .allowedMethods("GET", "POST", "OPTIONS")
                 .allowedHeaders("*");
+
+        registry.addMapping("/api/**")
+                .allowedOrigins("*")
+                .allowedMethods("GET", "POST", "OPTIONS")
+                .allowedHeaders("*")
+                .exposedHeaders("Content-Disposition");
     }
 
     @Override

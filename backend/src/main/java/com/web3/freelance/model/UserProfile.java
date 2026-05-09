@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +27,8 @@ public class UserProfile {
     @Column(name = "skill")
     private List<String> skills = new ArrayList<>();
 
-    private Double hourlyRate;
+    @Column(precision = 12, scale = 2)
+    private BigDecimal hourlyRate;
 
     private String profileImage;
 }

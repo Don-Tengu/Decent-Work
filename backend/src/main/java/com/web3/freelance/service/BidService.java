@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -62,5 +63,5 @@ public class BidService {
         return bidRepository.save(bid);
     }
 
-    public record PlaceBidRequest(Long jobId, Double amount, String proposal, Integer deliveryTime) {}
+    public record PlaceBidRequest(Long jobId, BigDecimal amount, String proposal, Integer deliveryTime) {}
 }

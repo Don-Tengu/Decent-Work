@@ -25,20 +25,128 @@ type Job {
     id: ID!
     title: String!
     description: String!
-    budget: Float!
     status: JobStatus!
+    scopeSize: JobScopeSize!
+    scopeDurationAmount: Int!
+    scopeDurationUnit: ScopeDurationUnit!
+    scopeDurationDays: Int!
+    experienceLevel: ExperienceLevel!
+    contractToHire: Boolean!
+    budgetType: BudgetType!
+    hourlyRateMin: Float
+    hourlyRateMax: Float
+    fixedBudget: Float
+    currencyCode: String!
+    paymentModel: PaymentModel!
+    skills: [Skill!]! @deprecated(reason: "Use jobSkillTags for built-in and custom job skills.")
+    jobSkillTags: [JobSkillTag!]!
+    attachments: [JobAttachment!]!
     client: User!
     bids: [Bid!]!
     acceptedBid: Bid
     escrowAddress: String
     createdAt: String!
+    updatedAt: String!
+    publishedAt: String
 }
 
 enum JobStatus {
+    DRAFT
     OPEN
     IN_PROGRESS
     COMPLETED
     CANCELLED
+}
+
+enum JobScopeSize {
+    SMALL
+    MEDIUM
+    LARGE
+}
+
+enum ScopeDurationUnit {
+    DAY
+    WEEK
+    MONTH
+    YEAR
+}
+
+enum ExperienceLevel {
+    ENTRY
+    INTERMEDIATE
+    EXPERT
+}
+
+enum BudgetType {
+    HOURLY
+    FIXED
+    NOT_READY
+}
+
+enum PaymentModel {
+    OFF_CHAIN_NEGOTIATED
+    ON_CHAIN_ESCROW
+    ON_CHAIN_MILESTONE_ESCROW
+}
+
+type Skill {
+    id: ID!
+    name: String!
+    slug: String!
+    normalizedName: String!
+    isActive: Boolean!
+    isVerified: Boolean!
+    createdByUser: User
+    taxonomyNodes: [SkillTaxonomyNode!]!
+    createdAt: String!
+}
+
+type JobSkillTag {
+    id: ID!
+    skill: Skill
+    skillId: ID
+    name: String!
+    custom: Boolean!
+    displayOrder: Int!
+}
+
+type SkillTaxonomyNode {
+    id: ID!
+    name: String!
+    slug: String!
+    normalizedName: String!
+    level: SkillTaxonomyLevel!
+    parent: SkillTaxonomyNode
+    children: [SkillTaxonomyNode!]!
+    displayOrder: Int!
+    isActive: Boolean!
+    createdAt: String!
+}
+
+enum SkillTaxonomyLevel {
+    CATEGORY
+    SUBCATEGORY
+    SPECIALTY
+}
+
+type JobAttachment {
+    id: ID!
+    storageProvider: JobAttachmentStorageProvider!
+    storageKey: String!
+    fileName: String!
+    contentType: String
+    fileSizeBytes: Float!
+    uploadedByUser: User!
+    publicUrl: String
+    ipfsCid: String
+    sha256Hash: String
+    createdAt: String!
+}
+
+enum JobAttachmentStorageProvider {
+    LOCAL
+    S3
+    IPFS
 }
 
 type Bid {
@@ -91,6 +199,8 @@ type Query {
     jobs(status: JobStatus, limit: Int, offset: Int): [Job!]!
     job(id: ID!): Job
     myJobs: [Job!]!
+    skills(query: String, limit: Int): [Skill!]!
+    skillTaxonomy: [SkillTaxonomyNode!]!
 
     # Bid queries
     myBids: [Bid!]!
@@ -138,13 +248,37 @@ input UpdateProfileInput {
 input CreateJobInput {
     title: String!
     description: String!
-    budget: Float!
+    skillIds: [ID!]!
+    customSkillNames: [String!]
+    scopeSize: JobScopeSize!
+    scopeDurationAmount: Int!
+    scopeDurationUnit: ScopeDurationUnit!
+    experienceLevel: ExperienceLevel!
+    contractToHire: Boolean!
+    budgetType: BudgetType!
+    hourlyRateMin: Float
+    hourlyRateMax: Float
+    fixedBudget: Float
+    currencyCode: String = "USD"
+    paymentModel: PaymentModel = OFF_CHAIN_NEGOTIATED
 }
 
 input UpdateJobInput {
     title: String
     description: String
-    budget: Float
+    skillIds: [ID!]
+    customSkillNames: [String!]
+    scopeSize: JobScopeSize
+    scopeDurationAmount: Int
+    scopeDurationUnit: ScopeDurationUnit
+    experienceLevel: ExperienceLevel
+    contractToHire: Boolean
+    budgetType: BudgetType
+    hourlyRateMin: Float
+    hourlyRateMax: Float
+    fixedBudget: Float
+    currencyCode: String
+    paymentModel: PaymentModel
     status: JobStatus
 }
 

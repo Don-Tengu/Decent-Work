@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,7 @@ public class BidController {
     }
 
     @QueryMapping
+    @PreAuthorize("isAuthenticated()")
     public List<Bid> jobBids(@Argument Long jobId) {
         return bidService.getJobBids(jobId);
     }
@@ -43,8 +45,8 @@ public class BidController {
         User currentUser = userService.getUserByEmail(authentication.getName());
 
         BidService.PlaceBidRequest request = new BidService.PlaceBidRequest(
-                ((Number) input.get("jobId")).longValue(),
-                ((Number) input.get("amount")).doubleValue(),
+                Long.valueOf(input.get("jobId").toString()),
+                new BigDecimal(input.get("amount").toString()),
                 (String) input.get("proposal"),
                 ((Number) input.get("deliveryTime")).intValue()
         );

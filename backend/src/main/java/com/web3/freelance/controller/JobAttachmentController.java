@@ -1,0 +1,100 @@
+package com.web3.freelance.controller;
+
+import com.web3.freelance.model.JobAttachment;
+import com.web3.freelance.model.User;
+import com.web3.freelance.service.JobAttachmentService;
+import com.web3.freelance.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/jobs/{jobId}/attachments")
+@RequiredArgsConstructor
+public class JobAttachmentController {
+
+    private final JobAttachmentService jobAttachmentService;
+    private final UserService userService;
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public List<JobAttachmentResponse> uploadAttachments(
+            @PathVariable Long jobId,
+            @RequestParam("files") MultipartFile[] files,
+            Authentication authentication
+    ) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+
+        return jobAttachmentService.uploadAttachments(jobId, currentUser.getId(), Arrays.asList(files)).stream()
+                .map(JobAttachmentResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/{attachmentId}/download")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Resource> downloadAttachment(
+            @PathVariable Long jobId,
+            @PathVariable Long attachmentId
+    ) {
+        JobAttachmentService.AttachmentDownload download = jobAttachmentService.loadAttachment(jobId, attachmentId);
+        JobAttachment attachment = download.attachment();
+        MediaType mediaType = attachment.getContentType() == null
+                ? MediaType.APPLICATION_OCTET_STREAM
+                : MediaType.parseMediaType(attachment.getContentType());
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .contentLength(attachment.getFileSizeBytes())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(attachment.getFileName(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString()
+                )
+                .body(download.resource());
+    }
+
+    public record JobAttachmentResponse(
+            Long id,
+            JobAttachment.StorageProvider storageProvider,
+            String storageKey,
+            String fileName,
+            String contentType,
+            Long fileSizeBytes,
+            String publicUrl,
+            String sha256Hash,
+            LocalDateTime createdAt
+    ) {
+        public static JobAttachmentResponse from(JobAttachment attachment) {
+            return new JobAttachmentResponse(
+                    attachment.getId(),
+                    attachment.getStorageProvider(),
+                    attachment.getStorageKey(),
+                    attachment.getFileName(),
+                    attachment.getContentType(),
+                    attachment.getFileSizeBytes(),
+                    attachment.getPublicUrl(),
+                    attachment.getSha256Hash(),
+                    attachment.getCreatedAt()
+            );
+        }
+    }
+}

@@ -22,6 +22,11 @@ spring:
       host: localhost
       port: 6379
 
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+
   graphql:
     graphiql:
       enabled: true
@@ -41,6 +46,10 @@ server:
 web3:
   provider-url: https://sepolia.infura.io/v3/YOUR_INFURA_KEY
   escrow-contract-address: 0x0000000000000000000000000000000000000000
+
+app:
+  uploads:
+    job-attachments-dir: uploads/job-attachments
 
 # JWT Configuration
 jwt:

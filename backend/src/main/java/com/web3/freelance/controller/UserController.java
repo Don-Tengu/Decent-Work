@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @Controller
@@ -26,6 +27,7 @@ public class UserController {
     }
 
     @QueryMapping
+    @PreAuthorize("isAuthenticated()")
     public User user(@Argument Long id) {
         return userService.getUserById(id);
     }
@@ -40,7 +42,7 @@ public class UserController {
                 (String) input.get("fullName"),
                 (String) input.get("bio"),
                 (java.util.List<String>) input.get("skills"),
-                input.get("hourlyRate") != null ? ((Number) input.get("hourlyRate")).doubleValue() : null,
+                input.get("hourlyRate") != null ? new BigDecimal(input.get("hourlyRate").toString()) : null,
                 (String) input.get("profileImage")
         );
 
