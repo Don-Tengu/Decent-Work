@@ -40,6 +40,10 @@ public class Job {
     private JobStatus status = JobStatus.DRAFT;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "draft_step", length = 16)
+    private DraftStep draftStep;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private JobScopeSize scopeSize;
 
@@ -93,9 +97,18 @@ public class Job {
     private PaymentModel paymentModel = PaymentModel.OFF_CHAIN_NEGOTIATED;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private SkillTaxonomyNode category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "specialty_id")
+    private SkillTaxonomyNode specialty;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private User client;
 
+    @Builder.Default
     @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
     private List<Bid> bids = new ArrayList<>();
 
@@ -138,6 +151,26 @@ public class Job {
         return jobSkills;
     }
 
+    public DraftStep getDraftStep() {
+        if (status == JobStatus.DRAFT && draftStep == null) {
+            return DraftStep.SKILLS;
+        }
+
+        return draftStep;
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void normalizeDraftStep() {
+        if (status == JobStatus.DRAFT && draftStep == null) {
+            draftStep = DraftStep.SKILLS;
+        }
+
+        if (status != JobStatus.DRAFT) {
+            draftStep = null;
+        }
+    }
+
     public void replaceSkills(List<JobSkill> selections) {
         jobSkills.clear();
         if (selections == null) {
@@ -155,6 +188,14 @@ public class Job {
         IN_PROGRESS,
         COMPLETED,
         CANCELLED
+    }
+
+    public enum DraftStep {
+        SKILLS,
+        SCOPE,
+        BUDGET,
+        DETAILS,
+        REVIEW
     }
 
     public enum JobScopeSize {

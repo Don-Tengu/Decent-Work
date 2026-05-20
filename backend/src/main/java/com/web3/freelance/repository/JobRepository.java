@@ -13,7 +13,9 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
     List<Job> findByStatus(Job.JobStatus status, Pageable pageable);
 
-    List<Job> findByClient(User client);
+    List<Job> findByClientOrderByCreatedAtDesc(User client);
+
+    List<Job> findByClientAndStatusInOrderByCreatedAtDesc(User client, List<Job.JobStatus> statuses);
 
     List<Job> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

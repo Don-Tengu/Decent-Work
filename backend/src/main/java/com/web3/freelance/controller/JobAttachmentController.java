@@ -6,10 +6,12 @@ import com.web3.freelance.service.JobAttachmentService;
 import com.web3.freelance.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -70,6 +72,18 @@ public class JobAttachmentController {
                                 .toString()
                 )
                 .body(download.resource());
+    }
+
+    @DeleteMapping("/{attachmentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deleteAttachment(
+            @PathVariable Long jobId,
+            @PathVariable Long attachmentId,
+            Authentication authentication
+    ) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        jobAttachmentService.deleteAttachment(jobId, attachmentId, currentUser.getId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
     public record JobAttachmentResponse(

@@ -26,6 +26,7 @@ type Job {
     title: String!
     description: String!
     status: JobStatus!
+    draftStep: JobDraftStep
     scopeSize: JobScopeSize!
     scopeDurationAmount: Int!
     scopeDurationUnit: ScopeDurationUnit!
@@ -38,6 +39,8 @@ type Job {
     fixedBudget: Float
     currencyCode: String!
     paymentModel: PaymentModel!
+    category: SkillTaxonomyNode
+    specialty: SkillTaxonomyNode
     skills: [Skill!]! @deprecated(reason: "Use jobSkillTags for built-in and custom job skills.")
     jobSkillTags: [JobSkillTag!]!
     attachments: [JobAttachment!]!
@@ -56,6 +59,14 @@ enum JobStatus {
     IN_PROGRESS
     COMPLETED
     CANCELLED
+}
+
+enum JobDraftStep {
+    SKILLS
+    SCOPE
+    BUDGET
+    DETAILS
+    REVIEW
 }
 
 enum JobScopeSize {
@@ -198,7 +209,7 @@ type Query {
     # Job queries
     jobs(status: JobStatus, limit: Int, offset: Int): [Job!]!
     job(id: ID!): Job
-    myJobs: [Job!]!
+    myJobs(statuses: [JobStatus!]): [Job!]!
     skills(query: String, limit: Int): [Skill!]!
     skillTaxonomy: [SkillTaxonomyNode!]!
 
@@ -218,6 +229,8 @@ type Mutation {
 
     # Job
     createJob(input: CreateJobInput!): Job!
+    saveJobDraft(id: ID, input: SaveJobDraftInput!): Job!
+    publishJob(id: ID, input: CreateJobInput!): Job!
     updateJob(id: ID!, input: UpdateJobInput!): Job!
     cancelJob(id: ID!): Job!
 
@@ -248,6 +261,8 @@ input UpdateProfileInput {
 input CreateJobInput {
     title: String!
     description: String!
+    categoryId: ID!
+    specialtyId: ID!
     skillIds: [ID!]!
     customSkillNames: [String!]
     scopeSize: JobScopeSize!
@@ -263,9 +278,32 @@ input CreateJobInput {
     paymentModel: PaymentModel = OFF_CHAIN_NEGOTIATED
 }
 
+input SaveJobDraftInput {
+    title: String
+    description: String
+    categoryId: ID
+    specialtyId: ID
+    skillIds: [ID!]
+    customSkillNames: [String!]
+    draftStep: JobDraftStep
+    scopeSize: JobScopeSize
+    scopeDurationAmount: Int
+    scopeDurationUnit: ScopeDurationUnit
+    experienceLevel: ExperienceLevel
+    contractToHire: Boolean
+    budgetType: BudgetType
+    hourlyRateMin: Float
+    hourlyRateMax: Float
+    fixedBudget: Float
+    currencyCode: String
+    paymentModel: PaymentModel
+}
+
 input UpdateJobInput {
     title: String
     description: String
+    categoryId: ID
+    specialtyId: ID
     skillIds: [ID!]
     customSkillNames: [String!]
     scopeSize: JobScopeSize

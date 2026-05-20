@@ -46,9 +46,9 @@ public class JobController {
 
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
-    public List<Job> myJobs(Authentication authentication) {
+    public List<Job> myJobs(@Argument List<Job.JobStatus> statuses, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
-        return jobService.getMyJobs(currentUser.getId());
+        return jobService.getMyJobs(currentUser.getId(), statuses);
     }
 
     @QueryMapping
@@ -67,10 +67,57 @@ public class JobController {
     @PreAuthorize("isAuthenticated()")
     public Job createJob(@Argument Map<String, Object> input, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
+        return jobService.createJob(currentUser.getId(), readCreateJobRequest(input));
+    }
 
-        JobService.CreateJobRequest request = new JobService.CreateJobRequest(
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Job publishJob(@Argument Long id, @Argument Map<String, Object> input, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return jobService.publishJob(id, currentUser.getId(), readCreateJobRequest(input));
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Job saveJobDraft(@Argument Long id, @Argument Map<String, Object> input, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+
+        JobService.SaveJobDraftRequest request = new JobService.SaveJobDraftRequest(
                 (String) input.get("title"),
                 (String) input.get("description"),
+                readLong(input.get("categoryId")),
+                readLong(input.get("specialtyId")),
+                input.containsKey("categoryId") && input.get("categoryId") == null,
+                input.containsKey("specialtyId") && input.get("specialtyId") == null,
+                input.containsKey("skillIds") ? readLongList(input.get("skillIds")) : null,
+                input.containsKey("customSkillNames") ? readStringList(input.get("customSkillNames")) : null,
+                input.containsKey("skillIds") || input.containsKey("customSkillNames"),
+                readEnum(input.get("draftStep"), Job.DraftStep.class),
+                readEnum(input.get("scopeSize"), Job.JobScopeSize.class),
+                readInteger(input.get("scopeDurationAmount")),
+                readEnum(input.get("scopeDurationUnit"), Job.ScopeDurationUnit.class),
+                readEnum(input.get("experienceLevel"), Job.ExperienceLevel.class),
+                input.containsKey("contractToHire") ? (Boolean) input.get("contractToHire") : null,
+                readEnum(input.get("budgetType"), Job.BudgetType.class),
+                readBigDecimal(input.get("hourlyRateMin")),
+                readBigDecimal(input.get("hourlyRateMax")),
+                readBigDecimal(input.get("fixedBudget")),
+                input.containsKey("hourlyRateMin") && input.get("hourlyRateMin") == null,
+                input.containsKey("hourlyRateMax") && input.get("hourlyRateMax") == null,
+                input.containsKey("fixedBudget") && input.get("fixedBudget") == null,
+                (String) input.get("currencyCode"),
+                readEnum(input.get("paymentModel"), Job.PaymentModel.class)
+        );
+
+        return jobService.saveJobDraft(id, currentUser.getId(), request);
+    }
+
+    private JobService.CreateJobRequest readCreateJobRequest(Map<String, Object> input) {
+        return new JobService.CreateJobRequest(
+                (String) input.get("title"),
+                (String) input.get("description"),
+                readLong(input.get("categoryId")),
+                readLong(input.get("specialtyId")),
                 readLongList(input.get("skillIds")),
                 readStringList(input.get("customSkillNames")),
                 readEnum(input.get("scopeSize"), Job.JobScopeSize.class),
@@ -85,8 +132,6 @@ public class JobController {
                 (String) input.get("currencyCode"),
                 readEnum(input.get("paymentModel"), Job.PaymentModel.class)
         );
-
-        return jobService.createJob(currentUser.getId(), request);
     }
 
     @MutationMapping
@@ -97,6 +142,10 @@ public class JobController {
         JobService.UpdateJobRequest request = new JobService.UpdateJobRequest(
                 (String) input.get("title"),
                 (String) input.get("description"),
+                readLong(input.get("categoryId")),
+                readLong(input.get("specialtyId")),
+                input.containsKey("categoryId") && input.get("categoryId") == null,
+                input.containsKey("specialtyId") && input.get("specialtyId") == null,
                 input.containsKey("skillIds") ? readLongList(input.get("skillIds")) : null,
                 input.containsKey("customSkillNames") ? readStringList(input.get("customSkillNames")) : null,
                 readEnum(input.get("scopeSize"), Job.JobScopeSize.class),
@@ -132,6 +181,10 @@ public class JobController {
 
     private Integer readInteger(Object value) {
         return value == null ? null : Integer.valueOf(value.toString());
+    }
+
+    private Long readLong(Object value) {
+        return value == null ? null : Long.valueOf(value.toString());
     }
 
     private List<Long> readLongList(Object value) {

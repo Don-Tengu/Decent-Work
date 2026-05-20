@@ -35,8 +35,9 @@ public class BidController {
 
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
-    public List<Bid> jobBids(@Argument Long jobId) {
-        return bidService.getJobBids(jobId);
+    public List<Bid> jobBids(@Argument Long jobId, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return bidService.getJobBids(jobId, currentUser.getId());
     }
 
     @MutationMapping

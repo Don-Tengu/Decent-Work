@@ -1,11 +1,13 @@
 package com.web3.freelance.service;
 
-import com.web3.freelance.model.JobSkill;
 import com.web3.freelance.model.Job;
+import com.web3.freelance.model.JobSkill;
 import com.web3.freelance.model.Skill;
+import com.web3.freelance.model.SkillTaxonomyNode;
 import com.web3.freelance.model.User;
 import com.web3.freelance.repository.JobRepository;
 import com.web3.freelance.repository.SkillRepository;
+import com.web3.freelance.repository.SkillTaxonomyNodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +33,7 @@ public class JobService {
 
     private final JobRepository jobRepository;
     private final SkillRepository skillRepository;
+    private final SkillTaxonomyNodeRepository skillTaxonomyNodeRepository;
     private final UserService userService;
 
     public Job getJobById(Long id) {
@@ -50,21 +53,41 @@ public class JobService {
         return jobRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
-    public List<Job> getMyJobs(Long userId) {
+    public List<Job> getMyJobs(Long userId, List<Job.JobStatus> statuses) {
         User user = userService.getUserById(userId);
-        return jobRepository.findByClient(user);
+        if (statuses != null && !statuses.isEmpty()) {
+            return jobRepository.findByClientAndStatusInOrderByCreatedAtDesc(user, statuses);
+        }
+        return jobRepository.findByClientOrderByCreatedAtDesc(user);
     }
 
     @Transactional
     public Job createJob(Long clientId, CreateJobRequest request) {
-        User client = userService.getUserById(clientId);
+        return publishJob(null, clientId, request);
+    }
 
-        if (client.getRole() != User.UserRole.CLIENT) {
-            throw new RuntimeException("Only clients can create jobs");
+    @Transactional
+    public Job publishJob(Long jobId, Long clientId, CreateJobRequest request) {
+        User client = getClientUser(clientId);
+        Job job = jobId == null ? newPublishableJob(client) : getOwnedJob(jobId, clientId);
+
+        if (jobId != null && job.getStatus() != Job.JobStatus.DRAFT) {
+            throw new RuntimeException("Only draft jobs can be published through this operation");
         }
 
         validateTitle(request.title());
         validateDescription(request.description());
+        SkillTaxonomyNode category = validateTaxonomyNode(
+                request.categoryId(),
+                SkillTaxonomyNode.TaxonomyLevel.CATEGORY,
+                "Category"
+        );
+        SkillTaxonomyNode specialty = validateTaxonomyNode(
+                request.specialtyId(),
+                SkillTaxonomyNode.TaxonomyLevel.SPECIALTY,
+                "Specialty"
+        );
+        validateCategorySpecialty(category, specialty);
         int scopeDurationDays = validateScopeAndGetDays(
                 request.scopeSize(),
                 request.scopeDurationAmount(),
@@ -72,28 +95,42 @@ public class JobService {
         );
         validateBudget(request.budgetType(), request.hourlyRateMin(), request.hourlyRateMax(), request.fixedBudget());
 
-        Job job = Job.builder()
-                .title(request.title())
-                .description(request.description())
-                .scopeSize(request.scopeSize())
-                .scopeDuration(toLegacyDuration(scopeDurationDays))
-                .scopeDurationAmount(request.scopeDurationAmount())
-                .scopeDurationUnit(request.scopeDurationUnit())
-                .scopeDurationDays(scopeDurationDays)
-                .experienceLevel(request.experienceLevel())
-                .contractToHire(Boolean.TRUE.equals(request.contractToHire()))
-                .budgetType(request.budgetType())
-                .hourlyRateMin(normalizeMoney(request.hourlyRateMin()))
-                .hourlyRateMax(normalizeMoney(request.hourlyRateMax()))
-                .fixedBudget(normalizeMoney(request.fixedBudget()))
-                .currencyCode(normalizeCurrency(request.currencyCode()))
-                .paymentModel(request.paymentModel() != null ? request.paymentModel() : Job.PaymentModel.OFF_CHAIN_NEGOTIATED)
-                .status(Job.JobStatus.OPEN)
-                .client(client)
-                .publishedAt(LocalDateTime.now())
-                .build();
+        job.setTitle(request.title().trim());
+        job.setDescription(request.description().trim());
+        job.setCategory(category);
+        job.setSpecialty(specialty);
+        job.setScopeSize(request.scopeSize());
+        job.setScopeDuration(toLegacyDuration(scopeDurationDays));
+        job.setScopeDurationAmount(request.scopeDurationAmount());
+        job.setScopeDurationUnit(request.scopeDurationUnit());
+        job.setScopeDurationDays(scopeDurationDays);
+        job.setExperienceLevel(request.experienceLevel());
+        job.setContractToHire(Boolean.TRUE.equals(request.contractToHire()));
+        job.setBudgetType(request.budgetType());
+        job.setHourlyRateMin(normalizeMoney(request.hourlyRateMin()));
+        job.setHourlyRateMax(normalizeMoney(request.hourlyRateMax()));
+        job.setFixedBudget(normalizeMoney(request.fixedBudget()));
+        job.setCurrencyCode(normalizeCurrency(request.currencyCode()));
+        job.setPaymentModel(request.paymentModel() != null ? request.paymentModel() : Job.PaymentModel.OFF_CHAIN_NEGOTIATED);
+        job.setDraftStep(null);
+        job.setStatus(Job.JobStatus.OPEN);
+        job.setClient(client);
+        job.setPublishedAt(LocalDateTime.now());
 
-        job.replaceSkills(buildJobSkills(job, request.skillIds(), request.customSkillNames()));
+        replaceJobSkills(job, buildJobSkills(job, request.skillIds(), request.customSkillNames(), true));
+        return jobRepository.save(job);
+    }
+
+    @Transactional
+    public Job saveJobDraft(Long jobId, Long clientId, SaveJobDraftRequest request) {
+        User client = getClientUser(clientId);
+        Job job = jobId == null ? newDraftJob(client) : getOwnedJob(jobId, clientId);
+
+        if (job.getStatus() != Job.JobStatus.DRAFT) {
+            throw new RuntimeException("Only draft jobs can be saved as drafts");
+        }
+
+        applyDraftRequest(job, request);
         return jobRepository.save(job);
     }
 
@@ -112,6 +149,20 @@ public class JobService {
         if (request.description() != null) {
             validateDescription(request.description());
             job.setDescription(request.description());
+        }
+        if (request.categoryId() != null || request.clearCategory()) {
+            job.setCategory(request.clearCategory() ? null : validateTaxonomyNode(
+                    request.categoryId(),
+                    SkillTaxonomyNode.TaxonomyLevel.CATEGORY,
+                    "Category"
+            ));
+        }
+        if (request.specialtyId() != null || request.clearSpecialty()) {
+            job.setSpecialty(request.clearSpecialty() ? null : validateTaxonomyNode(
+                    request.specialtyId(),
+                    SkillTaxonomyNode.TaxonomyLevel.SPECIALTY,
+                    "Specialty"
+            ));
         }
         if (request.scopeSize() != null) {
             job.setScopeSize(request.scopeSize());
@@ -147,13 +198,16 @@ public class JobService {
             job.setPaymentModel(request.paymentModel());
         }
         if (request.skillIds() != null || request.customSkillNames() != null) {
-            job.replaceSkills(buildJobSkills(job, request.skillIds(), request.customSkillNames()));
+            replaceJobSkills(job, buildJobSkills(job, request.skillIds(), request.customSkillNames(), true));
         }
         if (request.status() != null) {
             job.setStatus(request.status());
             if (request.status() == Job.JobStatus.OPEN && job.getPublishedAt() == null) {
                 job.setPublishedAt(LocalDateTime.now());
             }
+        }
+        if (job.getStatus() != Job.JobStatus.DRAFT) {
+            job.setDraftStep(null);
         }
 
         int scopeDurationDays = validateScopeAndGetDays(
@@ -163,6 +217,11 @@ public class JobService {
         );
         job.setScopeDurationDays(scopeDurationDays);
         job.setScopeDuration(toLegacyDuration(scopeDurationDays));
+        if (job.getStatus() == Job.JobStatus.OPEN) {
+            validateCategorySpecialty(job.getCategory(), job.getSpecialty());
+        } else if (job.getCategory() != null && job.getSpecialty() != null) {
+            validateCategorySpecialty(job.getCategory(), job.getSpecialty());
+        }
         validateBudget(job.getBudgetType(), job.getHourlyRateMin(), job.getHourlyRateMax(), job.getFixedBudget());
         return jobRepository.save(job);
     }
@@ -176,14 +235,151 @@ public class JobService {
         }
 
         job.setStatus(Job.JobStatus.CANCELLED);
+        job.setDraftStep(null);
         return jobRepository.save(job);
     }
 
-    private List<JobSkill> buildJobSkills(Job job, List<Long> skillIds, List<String> customSkillNames) {
+    private User getClientUser(Long clientId) {
+        User client = userService.getUserById(clientId);
+
+        if (client.getRole() != User.UserRole.CLIENT) {
+            throw new RuntimeException("Only clients can create jobs");
+        }
+
+        return client;
+    }
+
+    private Job getOwnedJob(Long jobId, Long clientId) {
+        Job job = getJobById(jobId);
+
+        if (!job.getClient().getId().equals(clientId)) {
+            throw new RuntimeException("Only job owner can update the job");
+        }
+
+        return job;
+    }
+
+    private Job newPublishableJob(User client) {
+        Job job = newDraftJob(client);
+        job.setStatus(Job.JobStatus.OPEN);
+        return job;
+    }
+
+    private Job newDraftJob(User client) {
+        return Job.builder()
+                .title("")
+                .description("")
+                .scopeSize(Job.JobScopeSize.MEDIUM)
+                .scopeDuration(Job.JobDuration.ONE_TO_THREE_MONTHS)
+                .scopeDurationAmount(1)
+                .scopeDurationUnit(Job.ScopeDurationUnit.MONTH)
+                .scopeDurationDays(30)
+                .experienceLevel(Job.ExperienceLevel.INTERMEDIATE)
+                .contractToHire(false)
+                .budgetType(Job.BudgetType.HOURLY)
+                .currencyCode("USD")
+                .paymentModel(Job.PaymentModel.OFF_CHAIN_NEGOTIATED)
+                .draftStep(Job.DraftStep.SKILLS)
+                .status(Job.JobStatus.DRAFT)
+                .client(client)
+                .build();
+    }
+
+    private void applyDraftRequest(Job job, SaveJobDraftRequest request) {
+        if (request.title() != null) {
+            validateDraftTitle(request.title());
+            job.setTitle(request.title().trim());
+        }
+        if (request.description() != null) {
+            validateDraftDescription(request.description());
+            job.setDescription(request.description().trim());
+        }
+        if (request.categoryId() != null || request.clearCategory()) {
+            job.setCategory(request.clearCategory() ? null : validateTaxonomyNode(
+                    request.categoryId(),
+                    SkillTaxonomyNode.TaxonomyLevel.CATEGORY,
+                    "Category"
+            ));
+        }
+        if (request.specialtyId() != null || request.clearSpecialty()) {
+            job.setSpecialty(request.clearSpecialty() ? null : validateTaxonomyNode(
+                    request.specialtyId(),
+                    SkillTaxonomyNode.TaxonomyLevel.SPECIALTY,
+                    "Specialty"
+            ));
+        }
+        if (job.getCategory() != null && job.getSpecialty() != null) {
+            validateCategorySpecialty(job.getCategory(), job.getSpecialty());
+        }
+        if (request.scopeSize() != null) {
+            job.setScopeSize(request.scopeSize());
+        }
+        if (request.draftStep() != null) {
+            job.setDraftStep(request.draftStep());
+        }
+        if (request.scopeDurationAmount() != null) {
+            validateDraftDurationAmount(request.scopeDurationAmount());
+            job.setScopeDurationAmount(request.scopeDurationAmount());
+        }
+        if (request.scopeDurationUnit() != null) {
+            job.setScopeDurationUnit(request.scopeDurationUnit());
+        }
+        int scopeDurationDays = validateScopeAndGetDays(
+                job.getScopeSize(),
+                job.getScopeDurationAmount(),
+                job.getScopeDurationUnit()
+        );
+        job.setScopeDurationDays(scopeDurationDays);
+        job.setScopeDuration(toLegacyDuration(scopeDurationDays));
+        if (request.experienceLevel() != null) {
+            job.setExperienceLevel(request.experienceLevel());
+        }
+        if (request.contractToHire() != null) {
+            job.setContractToHire(request.contractToHire());
+        }
+        if (request.budgetType() != null) {
+            job.setBudgetType(request.budgetType());
+        }
+        if (request.hourlyRateMin() != null || request.clearHourlyRateMin()) {
+            job.setHourlyRateMin(request.clearHourlyRateMin() ? null : normalizeMoney(request.hourlyRateMin()));
+        }
+        if (request.hourlyRateMax() != null || request.clearHourlyRateMax()) {
+            job.setHourlyRateMax(request.clearHourlyRateMax() ? null : normalizeMoney(request.hourlyRateMax()));
+        }
+        if (request.fixedBudget() != null || request.clearFixedBudget()) {
+            job.setFixedBudget(request.clearFixedBudget() ? null : normalizeMoney(request.fixedBudget()));
+        }
+        if (request.currencyCode() != null) {
+            job.setCurrencyCode(normalizeCurrency(request.currencyCode()));
+        }
+        if (request.paymentModel() != null) {
+            job.setPaymentModel(request.paymentModel());
+        }
+        validateDraftBudget(job.getBudgetType(), job.getHourlyRateMin(), job.getHourlyRateMax(), job.getFixedBudget());
+        if (request.skillFieldsProvided()) {
+            replaceJobSkills(job, buildJobSkills(job, request.skillIds(), request.customSkillNames(), false));
+        }
+    }
+
+    private void replaceJobSkills(Job job, List<JobSkill> selections) {
+        if (job.getId() != null && !job.getJobSkillTags().isEmpty()) {
+            job.replaceSkills(List.of());
+            jobRepository.flush();
+        }
+
+        job.replaceSkills(selections);
+    }
+
+    private List<JobSkill> buildJobSkills(
+            Job job,
+            List<Long> skillIds,
+            List<String> customSkillNames,
+            boolean requireSkills
+    ) {
         List<Long> safeSkillIds = skillIds != null ? skillIds : List.of();
         List<String> safeCustomSkillNames = customSkillNames != null ? customSkillNames : List.of();
 
-        if (safeSkillIds.isEmpty() && safeCustomSkillNames.isEmpty()) {
+        if (requireSkills && safeSkillIds.isEmpty() && safeCustomSkillNames.isEmpty()) {
             throw new RuntimeException("At least one skill is required");
         }
         if (safeSkillIds.size() + safeCustomSkillNames.size() > 10) {
@@ -302,6 +498,12 @@ public class JobService {
         }
     }
 
+    private void validateDraftTitle(String title) {
+        if (title.length() > 200) {
+            throw new RuntimeException("Job title must be at most 200 characters");
+        }
+    }
+
     private void validateDescription(String description) {
         if (description == null || description.isBlank()) {
             throw new RuntimeException("Job description is required");
@@ -311,6 +513,52 @@ public class JobService {
         }
         if (description.length() > MAX_DESCRIPTION_LENGTH) {
             throw new RuntimeException("Job description must be at most 50,000 characters");
+        }
+    }
+
+    private void validateDraftDescription(String description) {
+        if (description.length() > MAX_DESCRIPTION_LENGTH) {
+            throw new RuntimeException("Job description must be at most 50,000 characters");
+        }
+    }
+
+    private void validateDraftDurationAmount(Integer scopeDurationAmount) {
+        if (scopeDurationAmount == null || scopeDurationAmount < 1) {
+            throw new RuntimeException("Scope duration must be a positive whole number");
+        }
+    }
+
+    private SkillTaxonomyNode validateTaxonomyNode(
+            Long taxonomyNodeId,
+            SkillTaxonomyNode.TaxonomyLevel expectedLevel,
+            String label
+    ) {
+        if (taxonomyNodeId == null) {
+            throw new RuntimeException(label + " is required");
+        }
+
+        SkillTaxonomyNode node = skillTaxonomyNodeRepository.findById(taxonomyNodeId)
+                .orElseThrow(() -> new RuntimeException(label + " is invalid"));
+
+        if (!Boolean.TRUE.equals(node.getIsActive()) || node.getLevel() != expectedLevel) {
+            throw new RuntimeException(label + " is invalid");
+        }
+
+        return node;
+    }
+
+    private void validateCategorySpecialty(SkillTaxonomyNode category, SkillTaxonomyNode specialty) {
+        if (category == null) {
+            throw new RuntimeException("Category is required");
+        }
+        if (specialty == null) {
+            throw new RuntimeException("Specialty is required");
+        }
+        SkillTaxonomyNode subcategory = specialty.getParent();
+        SkillTaxonomyNode specialtyCategory = subcategory != null ? subcategory.getParent() : null;
+
+        if (specialtyCategory == null || !specialtyCategory.getId().equals(category.getId())) {
+            throw new RuntimeException("Specialty does not belong to the selected category");
         }
     }
 
@@ -397,6 +645,30 @@ public class JobService {
         }
     }
 
+    private void validateDraftBudget(
+            Job.BudgetType budgetType,
+            BigDecimal hourlyRateMin,
+            BigDecimal hourlyRateMax,
+            BigDecimal fixedBudget
+    ) {
+        if (budgetType == null) {
+            throw new RuntimeException("Budget type is required");
+        }
+
+        if (hourlyRateMin != null && hourlyRateMin.signum() < 0) {
+            throw new RuntimeException("Hourly rate range is invalid");
+        }
+        if (hourlyRateMax != null && hourlyRateMax.signum() < 0) {
+            throw new RuntimeException("Hourly rate range is invalid");
+        }
+        if (hourlyRateMin != null && hourlyRateMax != null && hourlyRateMin.compareTo(hourlyRateMax) > 0) {
+            throw new RuntimeException("Hourly rate range is invalid");
+        }
+        if (fixedBudget != null && fixedBudget.signum() < 0) {
+            throw new RuntimeException("Fixed budget must be zero or greater");
+        }
+    }
+
     private BigDecimal normalizeMoney(BigDecimal value) {
         return value == null ? null : value.setScale(2, java.math.RoundingMode.HALF_UP);
     }
@@ -411,6 +683,8 @@ public class JobService {
     public record CreateJobRequest(
             String title,
             String description,
+            Long categoryId,
+            Long specialtyId,
             List<Long> skillIds,
             List<String> customSkillNames,
             Job.JobScopeSize scopeSize,
@@ -426,11 +700,42 @@ public class JobService {
             Job.PaymentModel paymentModel
     ) {}
 
+    public record SaveJobDraftRequest(
+            String title,
+            String description,
+            Long categoryId,
+            Long specialtyId,
+            boolean clearCategory,
+            boolean clearSpecialty,
+            List<Long> skillIds,
+            List<String> customSkillNames,
+            boolean skillFieldsProvided,
+            Job.DraftStep draftStep,
+            Job.JobScopeSize scopeSize,
+            Integer scopeDurationAmount,
+            Job.ScopeDurationUnit scopeDurationUnit,
+            Job.ExperienceLevel experienceLevel,
+            Boolean contractToHire,
+            Job.BudgetType budgetType,
+            BigDecimal hourlyRateMin,
+            BigDecimal hourlyRateMax,
+            BigDecimal fixedBudget,
+            boolean clearHourlyRateMin,
+            boolean clearHourlyRateMax,
+            boolean clearFixedBudget,
+            String currencyCode,
+            Job.PaymentModel paymentModel
+    ) {}
+
     private record CustomSkillSelection(String displayName, String normalizedName) {}
 
     public record UpdateJobRequest(
             String title,
             String description,
+            Long categoryId,
+            Long specialtyId,
+            boolean clearCategory,
+            boolean clearSpecialty,
             List<Long> skillIds,
             List<String> customSkillNames,
             Job.JobScopeSize scopeSize,

@@ -113,6 +113,26 @@ public class JobAttachmentService {
         }
     }
 
+    @Transactional
+    public void deleteAttachment(Long jobId, Long attachmentId, Long userId) {
+        JobAttachment attachment = jobAttachmentRepository.findByIdAndJobId(attachmentId, jobId)
+                .orElseThrow(() -> ResourceNotFoundException.forResource("Job attachment", attachmentId));
+
+        if (!attachment.getJob().getClient().getId().equals(userId)) {
+            throw new AccessDeniedException("Only the job owner can remove attachments from this job");
+        }
+
+        Path filePath = getStorageRoot().resolve(attachment.getStorageKey()).normalize();
+        ensurePathWithinStorageRoot(filePath);
+        jobAttachmentRepository.delete(attachment);
+
+        try {
+            Files.deleteIfExists(filePath);
+        } catch (IOException exception) {
+            throw ValidationException.invalidInput("Unable to delete the attachment");
+        }
+    }
+
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw ValidationException.missingField("file");

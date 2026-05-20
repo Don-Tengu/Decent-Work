@@ -29,8 +29,13 @@ public class BidService {
         return bidRepository.findByFreelancer(user);
     }
 
-    public List<Bid> getJobBids(Long jobId) {
+    public List<Bid> getJobBids(Long jobId, Long clientId) {
         Job job = jobService.getJobById(jobId);
+
+        if (!job.getClient().getId().equals(clientId)) {
+            throw new RuntimeException("Only the job owner can view proposals");
+        }
+
         return bidRepository.findByJob(job);
     }
 
