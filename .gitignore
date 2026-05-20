@@ -8,6 +8,8 @@ yarn-error.log*
 **/test
 !frontend/src/test/
 !frontend/src/test/setup.js
+coverage/
+**/coverage/
 
 # Environment variables
 .env
