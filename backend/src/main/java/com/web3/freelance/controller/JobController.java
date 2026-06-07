@@ -5,6 +5,7 @@ import com.web3.freelance.model.Skill;
 import com.web3.freelance.model.SkillTaxonomyNode;
 import com.web3.freelance.model.User;
 import com.web3.freelance.service.JobService;
+import com.web3.freelance.service.SavedJobService;
 import com.web3.freelance.service.SkillService;
 import com.web3.freelance.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 public class JobController {
 
     private final JobService jobService;
+    private final SavedJobService savedJobService;
     private final SkillService skillService;
     private final UserService userService;
 
@@ -40,6 +42,34 @@ public class JobController {
 
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
+    public JobService.JobSearchResult jobsPage(
+            @Argument Job.JobStatus status,
+            @Argument String query,
+            @Argument Long categoryId,
+            @Argument List<Long> categoryIds,
+            @Argument List<Long> specialtyIds,
+            @Argument List<Job.ExperienceLevel> experienceLevels,
+            @Argument List<Job.BudgetType> budgetTypes,
+            @Argument Integer page,
+            @Argument Integer size,
+            @Argument JobService.JobSort sort
+    ) {
+        return jobService.getJobsPage(new JobService.SearchJobsRequest(
+                status,
+                query,
+                categoryId,
+                categoryIds,
+                specialtyIds,
+                experienceLevels,
+                budgetTypes,
+                page,
+                size,
+                sort
+        ));
+    }
+
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
     public Job job(@Argument Long id) {
         return jobService.getJobById(id);
     }
@@ -49,6 +79,20 @@ public class JobController {
     public List<Job> myJobs(@Argument List<Job.JobStatus> statuses, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
         return jobService.getMyJobs(currentUser.getId(), statuses);
+    }
+
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    public List<Job> mySavedJobs(Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return savedJobService.getSavedJobs(currentUser.getId());
+    }
+
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    public List<Long> savedJobIds(Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return savedJobService.getSavedJobIds(currentUser.getId());
     }
 
     @QueryMapping
@@ -173,6 +217,20 @@ public class JobController {
     public Job cancelJob(@Argument Long id, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
         return jobService.cancelJob(id, currentUser.getId());
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Job saveJob(@Argument Long id, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return savedJobService.saveJob(currentUser.getId(), id);
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Job unsaveJob(@Argument Long id, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return savedJobService.unsaveJob(currentUser.getId(), id);
     }
 
     private BigDecimal readBigDecimal(Object value) {

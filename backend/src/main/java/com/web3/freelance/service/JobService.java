@@ -8,9 +8,15 @@ import com.web3.freelance.model.User;
 import com.web3.freelance.repository.JobRepository;
 import com.web3.freelance.repository.SkillRepository;
 import com.web3.freelance.repository.SkillTaxonomyNodeRepository;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,15 +48,41 @@ public class JobService {
     }
 
     public List<Job> getJobs(Job.JobStatus status, Integer limit, Integer offset) {
-        Pageable pageable = PageRequest.of(
-                offset != null ? offset / (limit != null ? limit : 10) : 0,
-                limit != null ? limit : 10
-        );
+        int safeLimit = getSafePageSize(limit);
+        int page = offset != null && offset > 0 ? offset / safeLimit : 0;
 
-        if (status != null) {
-            return jobRepository.findByStatus(status, pageable);
-        }
-        return jobRepository.findAllByOrderByCreatedAtDesc(pageable);
+        return getJobsPage(new SearchJobsRequest(
+                status,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                page,
+                safeLimit,
+                JobSort.MOST_RECENT
+        )).content();
+    }
+
+    public JobSearchResult getJobsPage(SearchJobsRequest request) {
+        SearchJobsRequest safeRequest = request == null
+                ? new SearchJobsRequest(null, null, null, List.of(), List.of(), List.of(), List.of(), 0, 10, JobSort.MOST_RECENT)
+                : request;
+        int page = Math.max(safeRequest.page() != null ? safeRequest.page() : 0, 0);
+        int size = getSafePageSize(safeRequest.size());
+        Pageable pageable = PageRequest.of(page, size, getSort(safeRequest.sort()));
+        Page<Job> jobsPage = jobRepository.findAll(buildJobSearchSpecification(safeRequest), pageable);
+
+        return new JobSearchResult(
+                jobsPage.getContent(),
+                (int) Math.min(jobsPage.getTotalElements(), Integer.MAX_VALUE),
+                jobsPage.getTotalPages(),
+                jobsPage.getNumber(),
+                jobsPage.getSize(),
+                jobsPage.hasNext(),
+                jobsPage.hasPrevious()
+        );
     }
 
     public List<Job> getMyJobs(Long userId, List<Job.JobStatus> statuses) {
@@ -283,6 +315,100 @@ public class JobService {
                 .status(Job.JobStatus.DRAFT)
                 .client(client)
                 .build();
+    }
+
+    private int getSafePageSize(Integer size) {
+        int safeSize = size != null ? size : 10;
+        return Math.min(Math.max(safeSize, 1), 50);
+    }
+
+    private Sort getSort(JobSort sort) {
+        JobSort safeSort = sort != null ? sort : JobSort.MOST_RECENT;
+
+        return switch (safeSort) {
+            case BEST_MATCH, MOST_RECENT -> Sort.by(Sort.Direction.DESC, "publishedAt", "createdAt");
+        };
+    }
+
+    private Specification<Job> buildJobSearchSpecification(SearchJobsRequest request) {
+        return (root, query, criteriaBuilder) -> {
+            if (query != null) {
+                query.distinct(true);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            if (request.status() != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), request.status()));
+            }
+            TaxonomyFilterIds taxonomyFilterIds = getTaxonomyFilterIds(request);
+            if (!taxonomyFilterIds.categoryIds().isEmpty() || !taxonomyFilterIds.specialtyIds().isEmpty()) {
+                List<Predicate> taxonomyPredicates = new ArrayList<>();
+                if (!taxonomyFilterIds.categoryIds().isEmpty()) {
+                    taxonomyPredicates.add(root.get("category").get("id").in(taxonomyFilterIds.categoryIds()));
+                }
+                if (!taxonomyFilterIds.specialtyIds().isEmpty()) {
+                    taxonomyPredicates.add(root.get("specialty").get("id").in(taxonomyFilterIds.specialtyIds()));
+                }
+                predicates.add(criteriaBuilder.or(taxonomyPredicates.toArray(new Predicate[0])));
+            }
+            if (request.experienceLevels() != null && !request.experienceLevels().isEmpty()) {
+                predicates.add(root.get("experienceLevel").in(request.experienceLevels()));
+            }
+            if (request.budgetTypes() != null && !request.budgetTypes().isEmpty()) {
+                predicates.add(root.get("budgetType").in(request.budgetTypes()));
+            }
+
+            String normalizedQuery = cleanSearchQuery(request.query());
+            if (!normalizedQuery.isBlank()) {
+                String likeQuery = "%" + normalizedQuery.toLowerCase(Locale.ROOT) + "%";
+                Join<Job, JobSkill> jobSkillJoin = root.join("jobSkills", JoinType.LEFT);
+                Join<JobSkill, Skill> skillJoin = jobSkillJoin.join("skill", JoinType.LEFT);
+                Join<Job, SkillTaxonomyNode> categoryJoin = root.join("category", JoinType.LEFT);
+                Join<Job, SkillTaxonomyNode> specialtyJoin = root.join("specialty", JoinType.LEFT);
+
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), likeQuery),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), likeQuery),
+                        criteriaBuilder.like(criteriaBuilder.lower(jobSkillJoin.get("skillName")), likeQuery),
+                        criteriaBuilder.like(criteriaBuilder.lower(skillJoin.get("name")), likeQuery),
+                        criteriaBuilder.like(criteriaBuilder.lower(categoryJoin.get("name")), likeQuery),
+                        criteriaBuilder.like(criteriaBuilder.lower(specialtyJoin.get("name")), likeQuery)
+                ));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private String cleanSearchQuery(String query) {
+        return query == null ? "" : query.trim().replaceAll("\\s+", " ");
+    }
+
+    TaxonomyFilterIds getTaxonomyFilterIds(SearchJobsRequest request) {
+        if (request == null) {
+            return new TaxonomyFilterIds(List.of(), List.of());
+        }
+
+        List<Long> categoryIds = new ArrayList<>(cleanIds(request.categoryIds()));
+        if (request.categoryId() != null && request.categoryId() > 0) {
+            categoryIds.add(request.categoryId());
+        }
+
+        return new TaxonomyFilterIds(
+                categoryIds.stream().distinct().toList(),
+                cleanIds(request.specialtyIds())
+        );
+    }
+
+    private List<Long> cleanIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+
+        return ids.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
     }
 
     private void applyDraftRequest(Job job, SaveJobDraftRequest request) {
@@ -698,6 +824,39 @@ public class JobService {
             BigDecimal fixedBudget,
             String currencyCode,
             Job.PaymentModel paymentModel
+    ) {}
+
+    public enum JobSort {
+        BEST_MATCH,
+        MOST_RECENT
+    }
+
+    public record SearchJobsRequest(
+            Job.JobStatus status,
+            String query,
+            Long categoryId,
+            List<Long> categoryIds,
+            List<Long> specialtyIds,
+            List<Job.ExperienceLevel> experienceLevels,
+            List<Job.BudgetType> budgetTypes,
+            Integer page,
+            Integer size,
+            JobSort sort
+    ) {}
+
+    public record TaxonomyFilterIds(
+            List<Long> categoryIds,
+            List<Long> specialtyIds
+    ) {}
+
+    public record JobSearchResult(
+            List<Job> content,
+            Integer totalElements,
+            Integer totalPages,
+            Integer page,
+            Integer size,
+            Boolean hasNext,
+            Boolean hasPrevious
     ) {}
 
     public record SaveJobDraftRequest(

@@ -53,6 +53,16 @@ type Job {
     publishedAt: String
 }
 
+type JobPage {
+    content: [Job!]!
+    totalElements: Int!
+    totalPages: Int!
+    page: Int!
+    size: Int!
+    hasNext: Boolean!
+    hasPrevious: Boolean!
+}
+
 enum JobStatus {
     DRAFT
     OPEN
@@ -98,6 +108,11 @@ enum PaymentModel {
     OFF_CHAIN_NEGOTIATED
     ON_CHAIN_ESCROW
     ON_CHAIN_MILESTONE_ESCROW
+}
+
+enum JobSort {
+    BEST_MATCH
+    MOST_RECENT
 }
 
 type Skill {
@@ -160,14 +175,36 @@ enum JobAttachmentStorageProvider {
     IPFS
 }
 
+type BidAttachment {
+    id: ID!
+    storageProvider: BidAttachmentStorageProvider!
+    storageKey: String!
+    fileName: String!
+    contentType: String
+    fileSizeBytes: Float!
+    uploadedByUser: User!
+    publicUrl: String
+    ipfsCid: String
+    sha256Hash: String
+    createdAt: String!
+}
+
+enum BidAttachmentStorageProvider {
+    LOCAL
+    S3
+    IPFS
+}
+
 type Bid {
     id: ID!
     amount: Float!
     proposal: String!
+    relevantExperience: String
     deliveryTime: Int!
     status: BidStatus!
     freelancer: User!
     job: Job!
+    attachments: [BidAttachment!]!
     createdAt: String!
 }
 
@@ -208,14 +245,29 @@ type Query {
 
     # Job queries
     jobs(status: JobStatus, limit: Int, offset: Int): [Job!]!
+    jobsPage(
+        status: JobStatus
+        query: String
+        categoryId: ID
+        categoryIds: [ID!]
+        specialtyIds: [ID!]
+        experienceLevels: [ExperienceLevel!]
+        budgetTypes: [BudgetType!]
+        page: Int
+        size: Int
+        sort: JobSort
+    ): JobPage!
     job(id: ID!): Job
     myJobs(statuses: [JobStatus!]): [Job!]!
+    mySavedJobs: [Job!]!
+    savedJobIds: [ID!]!
     skills(query: String, limit: Int): [Skill!]!
     skillTaxonomy: [SkillTaxonomyNode!]!
 
     # Bid queries
     myBids: [Bid!]!
     jobBids(jobId: ID!): [Bid!]!
+    myBidForJob(jobId: ID!): Bid
 }
 
 type Mutation {
@@ -233,6 +285,8 @@ type Mutation {
     publishJob(id: ID, input: CreateJobInput!): Job!
     updateJob(id: ID!, input: UpdateJobInput!): Job!
     cancelJob(id: ID!): Job!
+    saveJob(id: ID!): Job!
+    unsaveJob(id: ID!): Job!
 
     # Bid
     placeBid(input: PlaceBidInput!): Bid!
@@ -324,5 +378,6 @@ input PlaceBidInput {
     jobId: ID!
     amount: Float!
     proposal: String!
+    relevantExperience: String
     deliveryTime: Int!
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BidRepository extends JpaRepository<Bid, Long> {
@@ -16,4 +17,8 @@ public interface BidRepository extends JpaRepository<Bid, Long> {
     List<Bid> findByJob(Job job);
 
     List<Bid> findByJobAndStatus(Job job, Bid.BidStatus status);
+
+    Optional<Bid> findByJobAndFreelancer(Job job, User freelancer);
+
+    boolean existsByJobAndFreelancer(Job job, User freelancer);
 }

@@ -40,6 +40,13 @@ public class BidController {
         return bidService.getJobBids(jobId, currentUser.getId());
     }
 
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    public Bid myBidForJob(@Argument Long jobId, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return bidService.getMyBidForJob(jobId, currentUser.getId());
+    }
+
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
     public Bid placeBid(@Argument Map<String, Object> input, Authentication authentication) {
@@ -49,7 +56,8 @@ public class BidController {
                 Long.valueOf(input.get("jobId").toString()),
                 new BigDecimal(input.get("amount").toString()),
                 (String) input.get("proposal"),
-                ((Number) input.get("deliveryTime")).intValue()
+                ((Number) input.get("deliveryTime")).intValue(),
+                (String) input.get("relevantExperience")
         );
 
         return bidService.placeBid(currentUser.getId(), request);
