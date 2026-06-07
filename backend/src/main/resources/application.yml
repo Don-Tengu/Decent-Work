@@ -1,6 +1,6 @@
 spring:
   application:
-    name: web3-freelance-marketplace
+    name: decent-work
 
   datasource:
     url: jdbc:postgresql://localhost:5432/decent_work
@@ -50,6 +50,7 @@ web3:
 app:
   uploads:
     job-attachments-dir: uploads/job-attachments
+    bid-attachments-dir: uploads/bid-attachments
 
 # JWT Configuration
 jwt:
