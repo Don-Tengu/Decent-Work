@@ -1,5 +1,7 @@
 package com.web3.freelance.service;
 
+import com.web3.freelance.exception.ErrorCode;
+import com.web3.freelance.exception.ResourceNotFoundException;
 import com.web3.freelance.model.Job;
 import com.web3.freelance.model.JobSkill;
 import com.web3.freelance.model.Skill;
@@ -44,7 +46,9 @@ public class JobService {
 
     public Job getJobById(Long id) {
         return jobRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Job not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.JOB_NOT_FOUND,
+                        "Job with ID " + id + " not found"));
     }
 
     public List<Job> getJobs(Job.JobStatus status, Integer limit, Integer offset) {

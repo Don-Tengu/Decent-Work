@@ -5,8 +5,8 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CANCEL_JOB, GET_JOB_BIDS, GET_MY_JOBS } from '@/graphql/queries.js';
-import Dashboard from './Dashboard.jsx';
+import { CANCEL_JOB, GET_MY_BIDS, GET_MY_JOBS, GET_MY_SAVED_JOBS } from '@/graphql/queries.js';
+import Dashboard from '@/pages/Dashboard.jsx';
 
 const navigateMock = vi.hoisted(() => vi.fn());
 const authState = vi.hoisted(() => ({
@@ -28,7 +28,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   };
 });
 
-vi.mock('../context/AuthContext', () => ({
+vi.mock('@/context/AuthContext', () => ({
   useAuth: () => authState,
 }));
 
@@ -104,6 +104,28 @@ const myJobsMock = (jobs) => ({
   },
 });
 
+const myBidsMock = (bids = []) => ({
+  request: {
+    query: GET_MY_BIDS,
+  },
+  result: {
+    data: {
+      myBids: bids,
+    },
+  },
+});
+
+const mySavedJobsMock = (jobs = []) => ({
+  request: {
+    query: GET_MY_SAVED_JOBS,
+  },
+  result: {
+    data: {
+      mySavedJobs: jobs,
+    },
+  },
+});
+
 const renderDashboard = (mocks) =>
   render(
     <ChakraProvider value={defaultSystem}>
@@ -119,6 +141,12 @@ afterEach(() => {
   cleanup();
   navigateMock.mockReset();
   authState.logout.mockReset();
+  authState.user = {
+    id: 'client-1',
+    email: 'jean@example.com',
+    username: 'Jean',
+    role: 'CLIENT',
+  };
   vi.restoreAllMocks();
 });
 
@@ -226,44 +254,29 @@ describe('Client Dashboard', () => {
     expect(navigateMock).toHaveBeenCalledWith('/post-job/job-open?mode=edit-posting');
   });
 
-  it('loads proposals for a posted job', async () => {
+  it('navigates to the proposals page for a posted job', async () => {
     const user = userEvent.setup();
 
-    renderDashboard([
-      myJobsMock([postedJob]),
-      {
-        request: {
-          query: GET_JOB_BIDS,
-          variables: { jobId: 'job-open' },
-        },
-        result: {
-          data: {
-            jobBids: [
-              {
-                __typename: 'Bid',
-                id: 'bid-1',
-                amount: 1200,
-                proposal: 'I can complete this audit with a clear report.',
-                deliveryTime: 7,
-                status: 'PENDING',
-                freelancer: {
-                  __typename: 'User',
-                  id: 'freelancer-1',
-                  username: 'Ada',
-                },
-                createdAt: '2026-05-09T00:00:00',
-              },
-            ],
-          },
-        },
-      },
-    ]);
+    renderDashboard([myJobsMock([postedJob])]);
 
     await user.click(await screen.findByRole('button', { name: /actions for smart contract audit/i }));
     await user.click(await screen.findByRole('menuitem', { name: /view proposals/i }));
 
-    expect(await screen.findByText('Ada')).toBeInTheDocument();
-    expect(screen.getByText(/complete this audit/i)).toBeInTheDocument();
+    expect(navigateMock).toHaveBeenCalledWith('/jobs/job-open/proposals', {
+      state: { from: '/dashboard' },
+    });
+  });
+
+  it('navigates to the proposals page from the card CTA', async () => {
+    const user = userEvent.setup();
+
+    renderDashboard([myJobsMock([postedJob])]);
+
+    await user.click(await screen.findByRole('button', { name: /view proposals/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/jobs/job-open/proposals', {
+      state: { from: '/dashboard' },
+    });
   });
 
   it('opens a themed dialog before removing a draft job', async () => {
@@ -344,5 +357,25 @@ describe('Client Dashboard', () => {
     await waitFor(() => {
       expect(screen.queryByText('Smart Contract Audit')).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('Freelancer Dashboard', () => {
+  it('renders saved jobs returned by the backend', async () => {
+    authState.user = {
+      id: 'freelancer-1',
+      email: 'ada@example.com',
+      username: 'Ada',
+      role: 'FREELANCER',
+    };
+
+    renderDashboard([
+      myBidsMock([]),
+      mySavedJobsMock([postedJob]),
+    ]);
+
+    expect(await screen.findByText('Smart Contract Audit')).toBeInTheDocument();
+    expect(screen.queryByText(/No saved jobs yet/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /unsave smart contract audit/i })).toBeInTheDocument();
   });
 });

@@ -123,11 +123,116 @@ export const GET_JOBS = gql`
       hourlyRateMin
       hourlyRateMax
       fixedBudget
+      currencyCode
+      category {
+        id
+        name
+      }
+      specialty {
+        id
+        name
+      }
+      jobSkillTags {
+        id
+        skillId
+        name
+        custom
+        displayOrder
+        skill {
+          id
+          name
+        }
+      }
+      bids {
+        id
+        status
+      }
       createdAt
+      publishedAt
       client {
         id
         username
       }
+    }
+  }
+`;
+
+export const GET_JOBS_PAGE = gql`
+  query JobsPage(
+    $status: JobStatus
+    $query: String
+    $categoryId: ID
+    $categoryIds: [ID!]
+    $specialtyIds: [ID!]
+    $experienceLevels: [ExperienceLevel!]
+    $budgetTypes: [BudgetType!]
+    $page: Int
+    $size: Int
+    $sort: JobSort
+  ) {
+    jobsPage(
+      status: $status
+      query: $query
+      categoryId: $categoryId
+      categoryIds: $categoryIds
+      specialtyIds: $specialtyIds
+      experienceLevels: $experienceLevels
+      budgetTypes: $budgetTypes
+      page: $page
+      size: $size
+      sort: $sort
+    ) {
+      content {
+        id
+        title
+        description
+        status
+        scopeSize
+        scopeDurationAmount
+        scopeDurationUnit
+        scopeDurationDays
+        experienceLevel
+        budgetType
+        hourlyRateMin
+        hourlyRateMax
+        fixedBudget
+        currencyCode
+        category {
+          id
+          name
+        }
+        specialty {
+          id
+          name
+        }
+        jobSkillTags {
+          id
+          skillId
+          name
+          custom
+          displayOrder
+          skill {
+            id
+            name
+          }
+        }
+        bids {
+          id
+          status
+        }
+        client {
+          id
+          username
+        }
+        createdAt
+        publishedAt
+      }
+      totalElements
+      totalPages
+      page
+      size
+      hasNext
+      hasPrevious
     }
   }
 `;
@@ -138,6 +243,21 @@ export const GET_MY_JOBS = gql`
     myJobs(statuses: $statuses) {
       ...JobDetails
     }
+  }
+`;
+
+export const GET_MY_SAVED_JOBS = gql`
+  ${JOB_DETAILS_FRAGMENT}
+  query MySavedJobs {
+    mySavedJobs {
+      ...JobDetails
+    }
+  }
+`;
+
+export const GET_SAVED_JOB_IDS = gql`
+  query SavedJobIds {
+    savedJobIds
   }
 `;
 
@@ -226,14 +346,61 @@ export const CANCEL_JOB = gql`
   }
 `;
 
+export const SAVE_JOB = gql`
+  mutation SaveJob($id: ID!) {
+    saveJob(id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+export const UNSAVE_JOB = gql`
+  mutation UnsaveJob($id: ID!) {
+    unsaveJob(id: $id) {
+      id
+      status
+    }
+  }
+`;
+
 export const PLACE_BID = gql`
   mutation PlaceBid($input: PlaceBidInput!) {
     placeBid(input: $input) {
       id
       amount
       proposal
+      relevantExperience
       deliveryTime
       status
+      attachments {
+        id
+        fileName
+        contentType
+        fileSizeBytes
+        publicUrl
+      }
+    }
+  }
+`;
+
+export const GET_MY_BID_FOR_JOB = gql`
+  query MyBidForJob($jobId: ID!) {
+    myBidForJob(jobId: $jobId) {
+      id
+      amount
+      proposal
+      relevantExperience
+      deliveryTime
+      status
+      createdAt
+      attachments {
+        id
+        fileName
+        contentType
+        fileSizeBytes
+        publicUrl
+      }
     }
   }
 `;
@@ -244,15 +411,25 @@ export const GET_MY_BIDS = gql`
       id
       amount
       proposal
+      relevantExperience
       deliveryTime
       status
+      attachments {
+        id
+        fileName
+        contentType
+        fileSizeBytes
+        publicUrl
+      }
       job {
         id
         title
+        status
         budgetType
         hourlyRateMin
         hourlyRateMax
         fixedBudget
+        currencyCode
       }
     }
   }
@@ -264,13 +441,87 @@ export const GET_JOB_BIDS = gql`
       id
       amount
       proposal
+      relevantExperience
       deliveryTime
       status
       freelancer {
         id
         username
+        role
+        walletAddress
+        createdAt
+        profile {
+          fullName
+          bio
+          skills
+          hourlyRate
+          profileImage
+        }
       }
       createdAt
+      attachments {
+        id
+        fileName
+        contentType
+        fileSizeBytes
+        publicUrl
+      }
+    }
+  }
+`;
+
+export const GET_USER = gql`
+  query User($id: ID!) {
+    user(id: $id) {
+      id
+      username
+      role
+      walletAddress
+      createdAt
+      profile {
+        fullName
+        bio
+        skills
+        hourlyRate
+        profileImage
+      }
+    }
+  }
+`;
+
+export const ACCEPT_BID = gql`
+  mutation AcceptBid($bidId: ID!) {
+    acceptBid(bidId: $bidId) {
+      id
+      status
+      amount
+      job {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const RELEASE_PAYMENT = gql`
+  mutation ReleasePayment($paymentId: ID!) {
+    releasePayment(paymentId: $paymentId) {
+      id
+      status
+      job {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const GET_PAYMENT_FOR_JOB = gql`
+  query PaymentForJob($jobId: ID!) {
+    paymentForJob(jobId: $jobId) {
+      id
+      status
+      amount
     }
   }
 `;

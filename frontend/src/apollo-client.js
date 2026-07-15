@@ -1,10 +1,11 @@
 import { ApolloClient, ApolloLink, InMemoryCache, createHttpLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
+import { GRAPHQL_ENDPOINT } from './config/api';
 import { dispatchAuthLogout } from './utils/authEvents';
 
 const httpLink = createHttpLink({
-  uri: 'http://localhost:8080/graphql',
+  uri: GRAPHQL_ENDPOINT,
 });
 
 const publicOperations = new Set(['Login', 'Register']);

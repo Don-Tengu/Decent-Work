@@ -1,11 +1,15 @@
 package com.web3.freelance.controller;
 
 import com.web3.freelance.model.Payment;
+import com.web3.freelance.model.User;
 import com.web3.freelance.service.PaymentService;
+import com.web3.freelance.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
+import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 @Controller
@@ -13,10 +17,22 @@ import org.springframework.stereotype.Controller;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final UserService userService;
+
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    public Payment paymentForJob(@Argument Long jobId, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return paymentService.getPaymentForJob(jobId, currentUser.getId());
+    }
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public Payment releasePayment(@Argument Long paymentId, @Argument String transactionHash) {
-        return paymentService.releasePayment(paymentId, transactionHash);
+    public Payment releasePayment(
+            @Argument Long paymentId,
+            @Argument String transactionHash,
+            Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return paymentService.releasePayment(paymentId, transactionHash, currentUser.getId());
     }
 }

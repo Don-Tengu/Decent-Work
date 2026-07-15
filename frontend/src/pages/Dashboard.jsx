@@ -1,12 +1,12 @@
 import React from 'react';
-import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Avatar,
   Badge,
   Box,
   Button,
-  Dialog,
+  Grid,
   Heading,
   HStack,
   IconButton,
@@ -20,36 +20,43 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   BriefcaseBusiness,
+  ChevronDown,
   ClipboardList,
+  Coins,
   Ellipsis,
   FilePenLine,
+  Heart,
+  Megaphone,
+  Pencil,
   Plus,
+  Search,
+  SendHorizontal,
+  ShieldCheck,
+  SlidersHorizontal,
+  Wallet,
 } from 'lucide-react';
 import GlassPanel from '../components/ui/GlassPanel';
 import PageShell from '../components/ui/PageShell';
-import SectionEyebrow from '../components/ui/SectionEyebrow';
+import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import { pageAccents } from '@/common.js';
-import { CANCEL_JOB, CONNECT_WALLET, GET_JOB_BIDS, GET_MY_JOBS } from '../graphql/queries';
+import { greenPillButtonStyles, subtlePillButtonStyles, yellowPillButtonStyles } from '../components/ui/buttonStyles.js';
+import {
+  CANCEL_JOB,
+  CONNECT_WALLET,
+  GET_MY_BIDS,
+  GET_MY_JOBS,
+  GET_MY_SAVED_JOBS,
+  GET_SAVED_JOB_IDS,
+  UNSAVE_JOB,
+} from '../graphql/queries';
 import { useAuth } from '../context/AuthContext';
 import { connectWallet } from '../utils/web3';
+import JobResultCard from './jobs/components/JobResultCard.jsx';
 
 
 const MY_JOBS_VARIABLES = { statuses: ['DRAFT', 'OPEN'] };
-
-const formatBudget = (value) => {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return '';
-  }
-
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-  }).format(amount);
-};
 
 const formatDate = (value) => {
   if (!value) {
@@ -130,68 +137,273 @@ const clientJobCardFlex = {
   xl: '0 0 calc((100% - 36px) / 3)',
 };
 
-const StatCard = ({ label, value, color }) => (
-  <GlassPanel variant="subtle" borderRadius="24px" p={6}>
-    <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" textTransform="uppercase" letterSpacing="0.08em" mb={3}>
-      {label}
-    </Text>
-    <Text color={color || 'white'} fontSize="3xl" fontWeight="bold" letterSpacing="-0.03em">
-      {value}
-    </Text>
+const freelancerTabs = [
+  { label: 'Best Matches', to: '/jobs' },
+  { label: 'Most Recent', to: '/jobs' },
+  { label: 'Saved Jobs', active: true },
+];
+
+const SidebarCard = ({ children, icon, title, action }) => (
+  <GlassPanel variant="subtle" borderRadius="24px" p={{ base: 5, md: 6 }} boxShadow="0 18px 42px rgba(2, 6, 23, 0.2)">
+    <VStack align="stretch" gap={5}>
+      <HStack justify="space-between" align="center" gap={4}>
+        <HStack gap={3} minW="0">
+          {icon ? (
+            <Box
+              boxSize="36px"
+              borderRadius="14px"
+              display="grid"
+              placeItems="center"
+              bg="rgba(34, 211, 238, 0.12)"
+              color="cyan.200"
+              flex="0 0 auto"
+            >
+              {icon}
+            </Box>
+          ) : null}
+          <Heading as="h3" size="sm" color="white" lineHeight="1.25">
+            {title}
+          </Heading>
+        </HStack>
+        {action}
+      </HStack>
+      {children}
+    </VStack>
   </GlassPanel>
 );
 
-const NavCard = ({ to, fromColor, toColor, icon, title, description }) => (
-  <Link to={to} style={{ textDecoration: 'none' }}>
-    <Box
-      bg="rgba(10, 18, 32, 0.78)"
-      border="1px solid"
-      borderColor="rgba(148, 163, 184, 0.16)"
-      borderRadius="28px"
-      p={6}
-      cursor="pointer"
-      transition="all 0.3s"
-      _hover={{
-        transform: 'translateY(-6px)',
-        boxShadow: '0 26px 48px rgba(2, 6, 23, 0.35)',
-        borderColor: 'rgba(125, 211, 252, 0.28)',
-      }}
-      position="relative"
-      overflow="hidden"
+const SidebarRow = ({ icon, title, detail, to, muted = false }) => {
+  const content = (
+    <HStack
+      justify="space-between"
+      align="center"
+      gap={4}
+      py={3}
+      color={muted ? 'rgba(226, 232, 240, 0.42)' : 'rgba(248, 250, 252, 0.9)'}
+      transition="color 0.2s ease"
+      _hover={to ? { color: 'white' } : undefined}
     >
+      <HStack gap={3} minW="0">
+        <Box color={muted ? 'rgba(148, 163, 184, 0.46)' : 'cyan.200'} flex="0 0 auto">
+          {icon}
+        </Box>
+        <Box minW="0">
+          <Text fontWeight="semibold" lineHeight="1.2">
+            {title}
+          </Text>
+          {detail ? (
+            <Text color="rgba(226, 232, 240, 0.52)" fontSize="sm" mt={1}>
+              {detail}
+            </Text>
+          ) : null}
+        </Box>
+      </HStack>
+      {to ? <ChevronDown size={18} style={{ transform: 'rotate(-90deg)' }} /> : <ChevronDown size={18} />}
+    </HStack>
+  );
+
+  if (!to) {
+    return content;
+  }
+
+  return (
+    <Box as={Link} to={to} textDecoration="none">
+      {content}
+    </Box>
+  );
+};
+
+const FreelancerSearchBar = () => {
+  const navigate = useNavigate();
+  const [searchValue, setSearchValue] = React.useState('');
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const cleanValue = searchValue.trim();
+    navigate(cleanValue ? `/jobs?q=${encodeURIComponent(cleanValue)}` : '/jobs');
+  };
+
+  return (
+    <Box as="form" onSubmit={handleSubmit}>
+      <HStack
+        h="48px"
+        px={4}
+        gap={3}
+        border="1px solid"
+        borderColor="rgba(148, 163, 184, 0.22)"
+        borderRadius="16px"
+        bg="rgba(8, 15, 29, 0.64)"
+        color="rgba(226, 232, 240, 0.72)"
+        transition="all 0.2s ease"
+        _focusWithin={{
+          borderColor: 'rgba(34, 211, 238, 0.42)',
+          bg: 'rgba(15, 23, 42, 0.78)',
+          color: 'white',
+        }}
+      >
+        <Search size={20} />
+        <Box
+          as="input"
+          aria-label="Search jobs"
+          value={searchValue}
+          onChange={(event) => setSearchValue(event.target.value)}
+          placeholder="Search for jobs"
+          flex="1"
+          minW="0"
+          h="full"
+          border="0"
+          outline="0"
+          bg="transparent"
+          color="white"
+          fontWeight="medium"
+          fontSize="sm"
+          _placeholder={{ color: 'rgba(226, 232, 240, 0.54)' }}
+          _focus={{ outline: 'none' }}
+        />
+      </HStack>
+    </Box>
+  );
+};
+
+const JobTabs = () => (
+  <HStack
+    as="nav"
+    aria-label="Job feed filters"
+    gap={{ base: 4, md: 7 }}
+    borderBottom="1px solid"
+    borderColor="rgba(148, 163, 184, 0.18)"
+    overflowX="auto"
+    css={{ scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}
+  >
+    {freelancerTabs.map((tab) => {
+      const tabStyles = {
+        position: 'relative',
+        pb: 3,
+        color: tab.active ? 'white' : 'rgba(226, 232, 240, 0.58)',
+        fontWeight: 'bold',
+        whiteSpace: 'nowrap',
+        textDecoration: 'none',
+        _after: tab.active
+          ? {
+              content: '""',
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: '-1px',
+              h: '2px',
+              borderRadius: 'full',
+              bg: 'cyan.300',
+            }
+          : undefined,
+        _hover: { color: 'white' },
+      };
+
+      return tab.to ? (
+        <Box key={tab.label} as={Link} to={tab.to} {...tabStyles}>
+          {tab.label}
+        </Box>
+      ) : (
+        <Box key={tab.label} as="span" {...tabStyles}>
+          {tab.label}
+        </Box>
+      );
+    })}
+  </HStack>
+);
+
+const SavedJobsEmptyState = () => (
+  <VStack align="center" justify="center" gap={6} minH={{ base: '330px', md: '470px' }} textAlign="center" px={4}>
+    <Box position="relative" w="150px" h="118px">
       <Box
         position="absolute"
-        inset="auto -10px -30px auto"
-        w="160px"
-        h="160px"
-        borderRadius="full"
-        bgGradient="to-br"
-        gradientFrom={fromColor}
-        gradientTo={toColor}
-        opacity={0.3}
-        filter="blur(8px)"
-      />
-      <Box
-        w="56px"
-        h="56px"
-        borderRadius="18px"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        bgGradient="to-br"
-        gradientFrom={fromColor}
-        gradientTo={toColor}
-        mb={5}
-        position="relative"
+        left="12px"
+        top="18px"
+        boxSize="76px"
+        borderRadius="22px"
+        display="grid"
+        placeItems="center"
+        bg="rgba(34, 211, 238, 0.16)"
+        border="1px solid"
+        borderColor="rgba(103, 232, 249, 0.22)"
+        color="cyan.200"
       >
-        <Text fontSize="2xl">{icon}</Text>
+        <BriefcaseBusiness size={34} />
       </Box>
-      <Heading size="md" color="white" mb={2}>{title}</Heading>
-      <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm" lineHeight="1.7">
-        {description}
-      </Text>
+      <Box
+        position="absolute"
+        right="8px"
+        top="2px"
+        boxSize="92px"
+        borderRadius="full"
+        display="grid"
+        placeItems="center"
+        bgGradient="to-br"
+        gradientFrom="green.300"
+        gradientTo="cyan.400"
+        color="gray.950"
+        boxShadow="0 18px 44px rgba(34, 211, 238, 0.22)"
+      >
+        <Heart size={40} fill="currentColor" />
+      </Box>
+      <Box
+        position="absolute"
+        left="54px"
+        bottom="0"
+        boxSize="42px"
+        borderRadius="full"
+        display="grid"
+        placeItems="center"
+        bg="rgba(216, 180, 254, 0.18)"
+        color="purple.200"
+        border="1px solid"
+        borderColor="rgba(216, 180, 254, 0.24)"
+      >
+        <SendHorizontal size={20} />
+      </Box>
     </Box>
-  </Link>
+
+    <VStack gap={2} maxW="660px">
+      <Heading as="h2" size={{ base: 'md', md: 'lg' }} color="white" letterSpacing="0">
+        Keep track of jobs you are interested in.
+      </Heading>
+      <Text color="rgba(226, 232, 240, 0.64)" fontSize={{ base: 'sm', md: 'md' }} lineHeight="1.7">
+        No saved jobs yet. Browse open work now, then keep active conversations organized from your bid pipeline.
+      </Text>
+    </VStack>
+
+    <HStack gap={3} flexWrap="wrap" justify="center">
+      <Button
+        as={Link}
+        to="/jobs"
+        borderRadius="full"
+        bgGradient="to-r"
+        gradientFrom="cyan.400"
+        gradientTo="blue.500"
+        color="gray.950"
+        fontWeight="bold"
+      >
+        Browse open jobs
+      </Button>
+      <Button as={Link} to="/my-bids" {...subtlePillButtonStyles}>
+        View my bids
+      </Button>
+    </HStack>
+  </VStack>
+);
+
+const SavedJobsList = ({ jobs, saving, onToggleSaved }) => (
+  <Box>
+    {jobs.map((job) => (
+      <JobResultCard
+        key={job.id}
+        job={job}
+        query=""
+        saved
+        saving={saving}
+        onToggleSaved={onToggleSaved}
+      />
+    ))}
+  </Box>
 );
 
 const PageState = ({ title, description, tone = 'default' }) => (
@@ -262,12 +474,12 @@ const JobActionsMenu = ({ job, isDraft, onEditDraft, onEditPosting, onRemove, on
       <IconButton
         aria-label={`Actions for ${getJobTitle(job)}`}
         type="button"
-        variant="ghost"
+        variant="plain"
         bg="transparent"
         color="rgba(226, 232, 240, 0.78)"
         borderRadius="full"
         size="sm"
-        _hover={{ bg: 'rgba(148, 163, 184, 0.12)', color: 'white' }}
+        _hover={{ bg: 'rgba(14, 116, 144, 0.14)', color: 'cyan.100' }}
         _active={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
         _open={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
         _expanded={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
@@ -411,12 +623,9 @@ const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewPropos
               as={Link}
               to={`/post-job/${job.id}`}
               w="full"
-              borderRadius="full"
-              colorPalette="yellow"
-              color="yellow.500"
-              variant="outline"
               fontWeight="600"
               h="42px"
+              {...yellowPillButtonStyles}
             >
               <HStack gap={2}>
                 <span>{getJobCardActionLabel(job)}</span>
@@ -426,13 +635,10 @@ const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewPropos
             <Button
               type="button"
               w="full"
-              borderRadius="full"
-              colorPalette="green"
-              color="green.500"
-              variant="outline"
               fontWeight="600"
               h="42px"
               onClick={() => onViewProposals(job)}
+              {...greenPillButtonStyles}
             >
               <HStack gap={2}>
                 <span>View proposals</span>
@@ -643,178 +849,34 @@ const ClientJobCarousel = ({ jobs, onEditDraft, onEditPosting, onRemove, onViewP
   );
 };
 
-const ProposalDialog = ({ job, bids, loading, error, onClose }) => (
-  <Dialog.Root open={!!job} onOpenChange={(details) => !details.open && onClose()}>
-    <Portal>
-      <Dialog.Backdrop bg="rgba(2, 6, 23, 0.78)" backdropFilter="blur(8px)" />
-      <Dialog.Positioner px={{ base: 4, md: 6 }}>
-        <Dialog.Content
-          bg="rgba(9, 16, 30, 0.96)"
-          border="1px solid"
-          borderColor="rgba(148, 163, 184, 0.18)"
-          borderRadius="28px"
-          color="white"
-          maxW="720px"
-        >
-          <Dialog.Header px={6} pt={6} pb={2}>
-            <VStack align="start" gap={2}>
-              <Dialog.Title fontSize="xl" fontWeight="bold">
-                Proposals for {job ? getJobTitle(job) : 'job'}
-              </Dialog.Title>
-              <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm">
-                Review incoming offers from freelancers for this posted job.
-              </Text>
-            </VStack>
-          </Dialog.Header>
-          <Dialog.Body px={6} py={5}>
-            {loading ? (
-              <Text color="rgba(226, 232, 240, 0.7)">Loading proposals...</Text>
-            ) : null}
-            {error ? (
-              <Text color="red.200">{error.message}</Text>
-            ) : null}
-            {!loading && !error && bids.length === 0 ? (
-              <Text color="rgba(226, 232, 240, 0.68)">No proposals have arrived yet.</Text>
-            ) : null}
-            {!loading && !error && bids.length > 0 ? (
-              <VStack align="stretch" gap={4}>
-                {bids.map((bid) => (
-                  <Box
-                    key={bid.id}
-                    border="1px solid"
-                    borderColor="rgba(148, 163, 184, 0.16)"
-                    borderRadius="18px"
-                    bg="rgba(15, 23, 42, 0.58)"
-                    p={4}
-                  >
-                    <HStack justify="space-between" align="start" gap={4} mb={3}>
-                      <Box>
-                        <Text color="white" fontWeight="semibold">
-                          {bid.freelancer?.username || 'Freelancer'}
-                        </Text>
-                        <Text color="rgba(226, 232, 240, 0.56)" fontSize="sm">
-                          {bid.deliveryTime} day delivery
-                        </Text>
-                      </Box>
-                      <Badge colorPalette="green" borderRadius="full" px={3} py={1}>
-                        {formatBudget(bid.amount)}
-                      </Badge>
-                    </HStack>
-                    <Text color="rgba(226, 232, 240, 0.72)" lineHeight="1.7">
-                      {bid.proposal}
-                    </Text>
-                  </Box>
-                ))}
-              </VStack>
-            ) : null}
-          </Dialog.Body>
-          <Dialog.Footer px={6} pb={6}>
-            <Dialog.CloseTrigger asChild>
-              <Button type="button" borderRadius="full" colorPalette="gray" variant="outline">
-                Close
-              </Button>
-            </Dialog.CloseTrigger>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Positioner>
-    </Portal>
-  </Dialog.Root>
-);
-
 const RemoveJobDialog = ({ job, loading, error, onClose, onConfirm }) => {
   const isDraft = job?.status === 'DRAFT';
   const jobTitle = job ? getJobTitle(job) : 'this job';
   const actionLabel = isDraft ? 'Remove draft' : 'Remove posting';
   const statusLabel = isDraft ? 'Draft job post' : 'Open job post';
+  const description = isDraft
+    ? `Remove "${jobTitle}" from your dashboard? This draft will no longer be available to continue posting.`
+    : `Remove "${jobTitle}" from your open postings? Freelancers will no longer see it as an active job.`;
 
   return (
-    <Dialog.Root
-      lazyMount
+    <ConfirmDialog
       open={!!job}
-      onOpenChange={(details) => {
-        if (!details.open) {
-          onClose();
-        }
-      }}
-      placement="center"
-      size={{ base: 'sm', md: 'md' }}
-    >
-      <Portal>
-        <Dialog.Backdrop bg="rgba(2, 6, 23, 0.78)" backdropFilter="blur(8px)" />
-        <Dialog.Positioner px={{ base: 4, md: 6 }}>
-          <Dialog.Content
-            bg="rgba(8, 13, 25, 0.98)"
-            border="1px solid"
-            borderColor="rgba(148, 163, 184, 0.22)"
-            borderRadius="26px"
-            boxShadow="0 28px 80px rgba(0, 0, 0, 0.48)"
-            color="white"
-            maxW="460px"
-          >
-            <Dialog.Header px={{ base: 5, md: 6 }} pt={{ base: 5, md: 6 }} pb={2}>
-              <VStack align="start" gap={3}>
-                <Badge
-                  colorPalette={isDraft ? 'yellow' : 'green'}
-                  variant="subtle"
-                  borderRadius="full"
-                  px={3}
-                  py={1}
-                  fontWeight="semibold"
-                >
-                  {statusLabel}
-                </Badge>
-                <Dialog.Title fontSize={{ base: 'xl', md: '2xl' }} lineHeight="1.1" letterSpacing="0">
-                  {actionLabel}?
-                </Dialog.Title>
-              </VStack>
-            </Dialog.Header>
-
-            <Dialog.Body px={{ base: 5, md: 6 }} py={3}>
-              <Text color="rgba(226, 232, 240, 0.72)" lineHeight="1.7">
-                {isDraft
-                  ? `Remove "${jobTitle}" from your dashboard? This draft will no longer be available to continue posting.`
-                  : `Remove "${jobTitle}" from your open postings? Freelancers will no longer see it as an active job.`}
-              </Text>
-              {error ? (
-                <Text color="red.200" fontSize="sm" mt={4}>
-                  {error.message}
-                </Text>
-              ) : null}
-            </Dialog.Body>
-
-            <Dialog.Footer px={{ base: 5, md: 6 }} pb={{ base: 5, md: 6 }} pt={3} gap={3}>
-              <Button
-                type="button"
-                variant="ghost"
-                borderRadius="full"
-                color="rgba(226, 232, 240, 0.78)"
-                disabled={loading}
-                onClick={onClose}
-                _hover={{ bg: 'rgba(148, 163, 184, 0.12)', color: 'white' }}
-              >
-                Keep job
-              </Button>
-              <Button
-                type="button"
-                borderRadius="full"
-                colorPalette="red"
-                fontWeight="bold"
-                loading={loading}
-                onClick={onConfirm}
-              >
-                {actionLabel}
-              </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+      headerBadge={{ label: statusLabel, colorPalette: isDraft ? 'yellow' : 'green' }}
+      title={`${actionLabel}?`}
+      description={description}
+      confirmLabel={actionLabel}
+      cancelLabel="Keep job"
+      colorPalette="red"
+      loading={loading}
+      error={error}
+      onConfirm={onConfirm}
+      onClose={onClose}
+    />
   );
 };
 
 const ClientDashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
-  const [selectedJob, setSelectedJob] = React.useState(null);
   const [jobPendingRemoval, setJobPendingRemoval] = React.useState(null);
   const { data, loading, error } = useQuery(GET_MY_JOBS, {
     variables: MY_JOBS_VARIABLES,
@@ -823,12 +885,6 @@ const ClientDashboard = ({ user, onLogout }) => {
   const [cancelJob, { loading: deletingJob, error: deleteError, reset: resetDeleteJob }] = useMutation(CANCEL_JOB, {
     refetchQueries: [{ query: GET_MY_JOBS, variables: MY_JOBS_VARIABLES }],
     awaitRefetchQueries: true,
-  });
-  const [
-    loadJobBids,
-    { data: bidsData, loading: loadingBids, error: bidsError },
-  ] = useLazyQuery(GET_JOB_BIDS, {
-    fetchPolicy: 'network-only',
   });
 
   const jobs = data?.myJobs ?? [];
@@ -870,8 +926,7 @@ const ClientDashboard = ({ user, onLogout }) => {
   };
 
   const handleViewProposals = (job) => {
-    setSelectedJob(job);
-    loadJobBids({ variables: { jobId: job.id } });
+    navigate(`/jobs/${job.id}/proposals`, { state: { from: '/dashboard' } });
   };
 
   return (
@@ -985,13 +1040,6 @@ const ClientDashboard = ({ user, onLogout }) => {
         ) : null}
       </VStack>
 
-      <ProposalDialog
-        job={selectedJob}
-        bids={bidsData?.jobBids ?? []}
-        loading={loadingBids}
-        error={bidsError}
-        onClose={() => setSelectedJob(null)}
-      />
       <RemoveJobDialog
         job={jobPendingRemoval}
         loading={deletingJob}
@@ -1010,112 +1058,180 @@ const FreelancerDashboard = ({
   walletSuccess,
   onConnectWallet,
   onLogout,
-}) => (
-  <PageShell accents={pageAccents} maxW="1100px" py={8}>
-    <VStack align="stretch" gap={8} position="relative">
-      <GlassPanel variant="solid" borderRadius="36px" p={{ base: 6, md: 8 }} boxShadow="0 30px 80px rgba(2, 6, 23, 0.36)">
-        <Stack
-          direction={{ base: 'column', lg: 'row' }}
-          justify="space-between"
-          align={{ base: 'start', lg: 'center' }}
-          gap={6}
-        >
-          <VStack align="start" gap={4} maxW="620px">
-            <SectionEyebrow label="Product Console" dotColor="cyan.300" />
-            <Heading
-              size={{ base: 'xl', md: '2xl' }}
-              color="white"
-              lineHeight="1.03"
-              letterSpacing="-0.03em"
-            >
-              Welcome back, {user?.username}.
-              <br />
-              Let&apos;s keep work moving.
-            </Heading>
-            <Text color="rgba(226, 232, 240, 0.74)" fontSize={{ base: 'md', md: 'lg' }}>
-              Track jobs, move accepted work into escrow, and keep both sides aligned on one
-              clean workflow.
-            </Text>
-          </VStack>
+}) => {
+  const { data, loading } = useQuery(GET_MY_BIDS, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const {
+    data: savedJobsData,
+    loading: loadingSavedJobs,
+    error: savedJobsError,
+  } = useQuery(GET_MY_SAVED_JOBS, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const [unsaveJob, { loading: unsavingSavedJob }] = useMutation(UNSAVE_JOB, {
+    refetchQueries: [{ query: GET_MY_SAVED_JOBS }, { query: GET_SAVED_JOB_IDS }],
+    awaitRefetchQueries: true,
+  });
+  const bids = data?.myBids ?? [];
+  const savedJobs = savedJobsData?.mySavedJobs ?? [];
+  const pendingBidCount = bids.filter((bid) => bid.status === 'PENDING').length;
+  const acceptedBidCount = bids.filter((bid) => bid.status === 'ACCEPTED').length;
+  const totalBidCountLabel = loading && !data ? '...' : String(bids.length);
 
-          <Button
-            onClick={onLogout}
-            colorPalette="red"
-            variant="solid"
-            size="md"
-            borderRadius="full"
-          >
-            Logout
-          </Button>
-        </Stack>
-      </GlassPanel>
+  const handleToggleSavedJob = (job) => {
+    unsaveJob({ variables: { id: job.id } });
+  };
 
-      <GlassPanel
-        variant="soft"
-        borderRadius="32px"
-        p={{ base: 6, md: 8 }}
-        boxShadow="0 24px 60px rgba(2, 6, 23, 0.28)"
+  return (
+    <PageShell accents={pageAccents} maxW="1280px" py={{ base: 5, md: 8 }} px={{ base: 4, lg: 8 }}>
+      <Grid
+        templateColumns={{ base: '1fr', xl: 'minmax(0, 1fr) 320px' }}
+        gap={{ base: 6, xl: 8 }}
+        alignItems="start"
       >
-        <Stack direction={{ base: 'column', lg: 'row' }} gap={8} align="start">
-          <HStack gap={5} align="start" flex={1}>
-            <Avatar.Root size="2xl" bg="cyan.500" color="gray.950">
-              <Avatar.Fallback name={user?.username} />
-            </Avatar.Root>
-            <VStack align="start" flex={1} gap={3}>
-              <HStack flexWrap="wrap" gap={3}>
-                <Heading size="lg" color="white">
-                  {user?.username}
-                </Heading>
-                <Badge
-                  colorPalette={user?.role === 'FREELANCER' ? 'cyan' : 'green'}
-                  fontSize="sm"
-                  px={3}
-                  py={1}
-                  borderRadius="full"
-                >
-                  {user?.role === 'FREELANCER' ? 'Freelancer' : 'Client'}
-                </Badge>
-              </HStack>
-              <Text color="rgba(226, 232, 240, 0.68)" fontSize="md">
-                {user?.email}
+        <VStack align="stretch" gap={6} minW="0">
+          <Stack
+            direction={{ base: 'column', md: 'row' }}
+            align={{ base: 'stretch', md: 'center' }}
+            justify="space-between"
+            gap={4}
+          >
+            <Box>
+              <Text color="rgba(125, 211, 252, 0.88)" fontSize="sm" fontWeight="bold" mb={2}>
+                Freelancer Workspace
               </Text>
-              <Text color="rgba(226, 232, 240, 0.56)" fontSize="sm" maxW="560px">
-                Review open opportunities, submit sharper proposals, and stay ready for escrow-backed work.
-              </Text>
-            </VStack>
-          </HStack>
+              <Heading as="h1" size={{ base: 'xl', md: '2xl' }} color="white" letterSpacing="0" lineHeight="1.08">
+                Good day, {user?.username}
+              </Heading>
+            </Box>
+            <HStack gap={3} justify={{ base: 'stretch', md: 'flex-end' }}>
+              <Button
+                as={Link}
+                to="/jobs"
+                {...subtlePillButtonStyles}
+                flex={{ base: 1, sm: '0 0 auto' }}
+              >
+                Browse jobs
+              </Button>
+              <Button
+                type="button"
+                onClick={onLogout}
+                colorPalette="red"
+                borderRadius="full"
+                flex={{ base: 1, sm: '0 0 auto' }}
+              >
+                Logout
+              </Button>
+            </HStack>
+          </Stack>
 
           <GlassPanel
+            as="main"
             variant="solid"
-            minW={{ base: 'full', lg: '320px' }}
-            w={{ base: 'full', lg: '320px' }}
-            borderRadius="28px"
-            p={5}
-            bg="rgba(8, 15, 29, 0.74)"
-            borderColor="rgba(148, 163, 184, 0.14)"
-            boxShadow="none"
+            borderRadius="30px"
+            p={{ base: 5, md: 7 }}
+            minH={{ base: '560px', xl: '760px' }}
+            boxShadow="0 28px 80px rgba(2, 6, 23, 0.34)"
           >
-            <Text color="whiteAlpha.700" fontSize="sm" mb={3}>
-              Wallet Status
-            </Text>
-            {user?.walletAddress ? (
-              <VStack align="start" gap={3}>
-                <Badge colorPalette="green" fontSize="sm" px={3} py={1} borderRadius="full">
-                  Connected
-                </Badge>
-                <Text color="white" fontWeight="semibold" fontSize="md">
+            <VStack align="stretch" gap={7}>
+              <FreelancerSearchBar />
+
+              <VStack align="stretch" gap={5}>
+                <Heading as="h2" size="lg" color="white" letterSpacing="0">
+                  Jobs you might like
+                </Heading>
+                <JobTabs />
+              </VStack>
+
+              {loadingSavedJobs && !savedJobsData ? (
+                <PageState
+                  title="Loading saved jobs"
+                  description="We are pulling your saved opportunities into this workspace."
+                />
+              ) : null}
+
+              {savedJobsError ? (
+                <PageState
+                  title="Unable to load saved jobs"
+                  description={savedJobsError.message}
+                  tone="error"
+                />
+              ) : null}
+
+              {!loadingSavedJobs && !savedJobsError && savedJobs.length === 0 ? (
+                <SavedJobsEmptyState />
+              ) : null}
+
+              {!savedJobsError && savedJobs.length > 0 ? (
+                <SavedJobsList
+                  jobs={savedJobs}
+                  saving={unsavingSavedJob}
+                  onToggleSaved={handleToggleSavedJob}
+                />
+              ) : null}
+            </VStack>
+          </GlassPanel>
+        </VStack>
+
+        <VStack as="aside" align="stretch" gap={5}>
+          <SidebarCard
+            title="Profile"
+            icon={<ShieldCheck size={19} />}
+            action={
+              <Badge colorPalette="cyan" variant="subtle" borderRadius="full" px={3}>
+                Freelancer
+              </Badge>
+            }
+          >
+            <HStack align="center" gap={4}>
+              <Avatar.Root size="lg" bg="cyan.500" color="gray.950">
+                <Avatar.Fallback name={user?.username} />
+              </Avatar.Root>
+              <Box minW="0">
+                <Text color="white" fontWeight="bold" lineHeight="1.2">
+                  {user?.username}
+                </Text>
+                <Text
+                  color="rgba(226, 232, 240, 0.58)"
+                  fontSize="sm"
+                  mt={1}
+                  css={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user?.email}
+                </Text>
+              </Box>
+            </HStack>
+
+            <Box borderTop="1px solid" borderColor="rgba(148, 163, 184, 0.14)" pt={4}>
+              <HStack justify="space-between" align="center" mb={3}>
+                <HStack gap={2} color="rgba(226, 232, 240, 0.68)">
+                  <Wallet size={17} />
+                  <Text fontSize="sm" fontWeight="semibold">
+                    Wallet
+                  </Text>
+                </HStack>
+                {user?.walletAddress ? (
+                  <Badge colorPalette="green" borderRadius="full">
+                    Connected
+                  </Badge>
+                ) : (
+                  <Badge colorPalette="yellow" borderRadius="full">
+                    Needed
+                  </Badge>
+                )}
+              </HStack>
+              {user?.walletAddress ? (
+                <Text color="white" fontSize="sm" fontWeight="semibold">
                   {shortAddress}
                 </Text>
-                <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm">
-                  Your wallet is ready for marketplace payments and escrow actions.
-                </Text>
-              </VStack>
-            ) : (
-              <VStack align="start" gap={3}>
-                <Text color="rgba(226, 232, 240, 0.68)" fontSize="sm">
-                  Connect your wallet to prepare for escrow payments and on-chain actions.
-                </Text>
+              ) : (
                 <Button
+                  type="button"
                   onClick={onConnectWallet}
                   size="sm"
                   borderRadius="full"
@@ -1124,86 +1240,101 @@ const FreelancerDashboard = ({
                   gradientTo="blue.500"
                   color="gray.950"
                   fontWeight="bold"
+                  w="full"
                 >
                   Connect Wallet
                 </Button>
-                {walletError && <Text color="red.300" fontSize="sm">{walletError}</Text>}
-                {walletSuccess && <Text color="green.300" fontSize="sm">{walletSuccess}</Text>}
-              </VStack>
-            )}
-          </GlassPanel>
-        </Stack>
-      </GlassPanel>
+              )}
+              {walletError ? <Text color="red.300" fontSize="sm" mt={3}>{walletError}</Text> : null}
+              {walletSuccess ? <Text color="green.300" fontSize="sm" mt={3}>{walletSuccess}</Text> : null}
+            </Box>
+          </SidebarCard>
 
-      <SimpleGrid columns={{ base: 1, md: 3 }} gap={5}>
-        <StatCard label="Active Jobs" value="0" color="blue.300" />
-        <StatCard label="Total Earnings" value="$0" color="green.300" />
-        <StatCard label="Completed" value="0" color="purple.300" />
-      </SimpleGrid>
-
-      <Box>
-        <HStack justify="space-between" mb={5} flexWrap="wrap" gap={3}>
-          <Stack direction="column" gap={1}>
-            <Heading size="md" color="white">
-              Quick Actions
-            </Heading>
-            <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm">
-              Jump into the next high-value step for your workflow.
+          <SidebarCard
+            title="Profile visibility"
+            icon={<BadgeCheck size={19} />}
+            action={<Pencil size={17} color="rgba(226, 232, 240, 0.58)" />}
+          >
+            <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.65">
+              Wallet verification and stronger proposals will help this profile stand out as the marketplace grows.
             </Text>
-          </Stack>
-        </HStack>
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
-          <NavCard
-            to="/jobs"
-            fromColor="cyan.400"
-            toColor="blue.500"
-            icon="💼"
-            title="Browse Jobs"
-            description="Discover open opportunities, review budgets, and find the next best match."
-          />
+            {user?.walletAddress ? (
+              <Badge alignSelf="start" colorPalette="green" variant="subtle" borderRadius="full" px={3} py={1}>
+                Verification ready
+              </Badge>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                onClick={onConnectWallet}
+                {...subtlePillButtonStyles}
+              >
+                Connect wallet
+              </Button>
+            )}
+          </SidebarCard>
 
-          <NavCard
-            to="/my-bids"
-            fromColor="green.300"
-            toColor="teal.400"
-            icon="📝"
-            title="My Bids"
-            description="Track proposals, compare opportunities, and follow accepted work."
-          />
+          <SidebarCard
+            title={`Proposals: ${totalBidCountLabel}`}
+            icon={<Coins size={19} />}
+            action={<ChevronDown size={18} color="rgba(226, 232, 240, 0.58)" />}
+          >
+            <SimpleGrid columns={2} gap={3}>
+              <Box>
+                <Text color="cyan.200" fontSize="2xl" fontWeight="bold">
+                  {pendingBidCount}
+                </Text>
+                <Text color="rgba(226, 232, 240, 0.54)" fontSize="sm">
+                  Pending
+                </Text>
+              </Box>
+              <Box>
+                <Text color="green.200" fontSize="2xl" fontWeight="bold">
+                  {acceptedBidCount}
+                </Text>
+                <Text color="rgba(226, 232, 240, 0.54)" fontSize="sm">
+                  Accepted
+                </Text>
+              </Box>
+            </SimpleGrid>
+            <Button as={Link} to="/my-bids" size="sm" {...greenPillButtonStyles}>
+              View bid pipeline
+            </Button>
+          </SidebarCard>
 
-          <NavCard
-            to="/jobs"
-            fromColor="orange.300"
-            toColor="pink.500"
-            icon="💰"
-            title="Payments"
-            description="Review the payment flow and prepare accepted jobs for escrow-backed release."
-          />
-        </SimpleGrid>
-      </Box>
+          <SidebarCard
+            title="Work center"
+            icon={<SlidersHorizontal size={19} />}
+            action={<ChevronDown size={18} color="rgba(226, 232, 240, 0.58)" />}
+          >
+            <VStack align="stretch" gap={0}>
+              <Box borderBottom="1px solid" borderColor="rgba(148, 163, 184, 0.14)">
+                <SidebarRow icon={<Search size={17} />} title="Job feed" detail="Open roles" to="/jobs" />
+              </Box>
+              <Box borderBottom="1px solid" borderColor="rgba(148, 163, 184, 0.14)">
+                <SidebarRow icon={<SendHorizontal size={17} />} title="Proposals" detail={`${pendingBidCount} pending`} to="/my-bids" />
+              </Box>
+              <SidebarRow icon={<Megaphone size={17} />} title="Project catalog" detail="Soon" muted />
+            </VStack>
+          </SidebarCard>
 
-      <SimpleGrid columns={{ base: 1, lg: 2 }} gap={6}>
-        <GlassPanel variant="subtle" borderRadius="28px" p={6}>
-          <Text color="white" fontSize="lg" fontWeight="semibold" mb={2}>
-            Your current stage
-          </Text>
-          <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.7">
-            You are set up to discover jobs, connect a wallet, and start building a bid history that can evolve into an escrow-backed work profile.
-          </Text>
-        </GlassPanel>
-
-        <NavCard
-          to="/my-bids"
-          fromColor="blue.400"
-          toColor="cyan.500"
-          icon="⚡"
-          title="Review Bid Pipeline"
-          description="Stay close to replies, accepted offers, and the next steps toward payout."
-        />
-      </SimpleGrid>
-    </VStack>
-  </PageShell>
-);
+          <GlassPanel variant="subtle" borderRadius="24px" p={{ base: 5, md: 6 }}>
+            <VStack align="stretch" gap={4}>
+              {['Direct contracts', 'Withdrawals', 'Escrow payments'].map((item) => (
+                <HStack key={item} justify="space-between" color="rgba(248, 250, 252, 0.86)">
+                  <Text fontWeight="semibold">{item}</Text>
+                  <Badge colorPalette="purple" variant="subtle" borderRadius="full">
+                    Soon
+                  </Badge>
+                </HStack>
+              ))}
+            </VStack>
+          </GlassPanel>
+        </VStack>
+      </Grid>
+    </PageShell>
+  );
+};
 
 const Dashboard = () => {
   const { user, logout } = useAuth();

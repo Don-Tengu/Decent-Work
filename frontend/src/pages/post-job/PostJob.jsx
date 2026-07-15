@@ -4,6 +4,7 @@ import { Box, Button, Grid, Heading, HStack, Stack, Text, VStack } from '@chakra
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageShell from '../../components/ui/PageShell.jsx';
 import { pageAccents } from '@/common.js';
+import { toApiUrl } from '@/config/api.js';
 import { GET_JOB, GET_SKILL_TAXONOMY, PUBLISH_JOB, SAVE_JOB_DRAFT, UPDATE_JOB } from '@/graphql/queries.js';
 import JobPostFooter from './components/JobPostFooter.jsx';
 import StepContent from './components/StepContent.jsx';
@@ -241,7 +242,7 @@ const uploadJobAttachments = async (jobId, attachments) => {
     const formData = new FormData();
     formData.append('files', attachment.file);
 
-    const response = await fetch(`http://localhost:8080/api/jobs/${jobId}/attachments`, {
+    const response = await fetch(toApiUrl(`/api/jobs/${jobId}/attachments`), {
       method: 'POST',
       headers: {
         authorization: token ? `Bearer ${token}` : '',
@@ -262,7 +263,7 @@ const uploadJobAttachments = async (jobId, attachments) => {
 
 const deleteJobAttachment = async (jobId, attachmentId) => {
   const token = localStorage.getItem('token');
-  const response = await fetch(`http://localhost:8080/api/jobs/${jobId}/attachments/${attachmentId}`, {
+  const response = await fetch(toApiUrl(`/api/jobs/${jobId}/attachments/${attachmentId}`), {
     method: 'DELETE',
     headers: {
       authorization: token ? `Bearer ${token}` : '',

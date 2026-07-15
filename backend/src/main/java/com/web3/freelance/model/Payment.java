@@ -37,7 +37,7 @@ public class Payment {
     private String escrowAddress;
 
     @OneToOne
-    @JoinColumn(name = "job_id", nullable = false)
+    @JoinColumn(name = "job_id", nullable = false, unique = true)
     private Job job;
 
     @ManyToOne(fetch = FetchType.LAZY)

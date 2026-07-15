@@ -1,5 +1,7 @@
 package com.web3.freelance.service;
 
+import com.web3.freelance.exception.ErrorCode;
+import com.web3.freelance.exception.ResourceNotFoundException;
 import com.web3.freelance.model.Bid;
 import com.web3.freelance.model.Job;
 import com.web3.freelance.model.User;
@@ -27,7 +29,9 @@ public class BidService {
 
     public Bid getBidById(Long id) {
         return bidRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Bid not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.BID_NOT_FOUND,
+                        "Bid with ID " + id + " not found"));
     }
 
     public List<Bid> getMyBids(Long userId) {
@@ -53,6 +57,24 @@ public class BidService {
         }
 
         return bidRepository.findByJob(job);
+    }
+
+    /**
+     * Rejects every still-pending proposal on the job except the accepted one.
+     * Invoked within the hire transaction when a client accepts a bid.
+     */
+    @Transactional
+    public void rejectCompetingBids(Job job, Long acceptedBidId) {
+        List<Bid> rejected = bidRepository.findByJobAndStatus(job, Bid.BidStatus.PENDING).stream()
+                .filter(bid -> !bid.getId().equals(acceptedBidId))
+                .toList();
+
+        if (rejected.isEmpty()) {
+            return;
+        }
+
+        rejected.forEach(bid -> bid.setStatus(Bid.BidStatus.REJECTED));
+        bidRepository.saveAll(rejected);
     }
 
     @Transactional

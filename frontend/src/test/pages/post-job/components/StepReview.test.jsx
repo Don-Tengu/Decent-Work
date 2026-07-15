@@ -3,7 +3,7 @@ import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import StepReview from './StepReview.jsx';
+import StepReview from '@/pages/post-job/components/StepReview.jsx';
 
 const taxonomyNodes = [
   {

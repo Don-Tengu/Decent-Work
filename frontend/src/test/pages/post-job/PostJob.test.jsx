@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GET_JOB, GET_SKILL_TAXONOMY, PUBLISH_JOB, SAVE_JOB_DRAFT, UPDATE_JOB } from '@/graphql/queries.js';
-import PostJob from './PostJob.jsx';
+import PostJob from '@/pages/post-job/PostJob.jsx';
 
 const navigateMock = vi.hoisted(() => vi.fn());
 
