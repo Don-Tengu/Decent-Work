@@ -56,10 +56,13 @@ logs/
 /smart-contracts/cache/
 /smart-contracts/typechain-types/
 /smart-contracts/deployment.json
+/smart-contracts/out/
+/smart-contracts/lib/
 
-# Local databases
+# Local databases / sql
 *.db
 *.sqlite
+/backend/sql/
 
 # Temporary files
 tmp/
