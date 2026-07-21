@@ -1,0 +1,54 @@
+# Local development profile (activated by default via spring.profiles.active=local).
+# Secrets and machine-specific values stay here — do not use this profile in production.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/decent_work
+    username: jean
+    password: zz13818411003
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  graphql:
+    graphiql:
+      enabled: true
+    schema:
+      printer:
+        enabled: true
+
+server:
+  port: 8080
+
+# Foundry Anvil defaults — set ESCROW_CONTRACT_ADDRESS after forge deploy
+web3:
+  provider-url: ${WEB3_PROVIDER_URL:http://127.0.0.1:8545}
+  escrow-contract-address: ${ESCROW_CONTRACT_ADDRESS:0x0000000000000000000000000000000000000000}
+  chain-id: ${WEB3_CHAIN_ID:31337}
+  platform-fee-percent: ${PLATFORM_FEE_PERCENT:5}
+
+app:
+  uploads:
+    job-attachments-dir: uploads/job-attachments
+    bid-attachments-dir: uploads/bid-attachments
+
+jwt:
+  secret: GeiJaRDJR6P+ml06XHL2HUM1XOYlz4jHrQvwhgV+xMw=
+  expiration: 86400000 # 24 hours
+
+logging:
+  level:
+    root: info
+    org.springframework.security: TRACE
+    org.springframework.security.web.FilterChainProxy: TRACE
+    com.web3.freelance.security: TRACE
