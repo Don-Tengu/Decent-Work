@@ -1,22 +1,28 @@
 import React from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { Box, Button, Grid, HStack, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Field, Grid, HStack, Text, Textarea, VStack } from '@chakra-ui/react';
 import { ArrowLeft, LayoutDashboard } from 'lucide-react';
 import {
   GET_JOB,
   GET_MY_BID_FOR_JOB,
+  GET_MY_BIDS,
+  GET_MY_NOTIFICATIONS,
   GET_MY_SAVED_JOBS,
   GET_SAVED_JOB_IDS,
   SAVE_JOB,
+  SUBMIT_WORK,
+  UNREAD_NOTIFICATION_COUNT,
   UNSAVE_JOB,
 } from '@/graphql/queries.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { quietPillButtonStyles, subtlePillButtonStyles } from '../../components/ui/buttonStyles.js';
+import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import PageShell from '../../components/ui/PageShell.jsx';
 import JobDetailContent from './components/JobDetailContent.jsx';
 import JobDetailSidebar from './components/JobDetailSidebar.jsx';
 import JobsPageState from './components/JobsPageState.jsx';
+import { inputStyles } from '../post-job/styles.js';
 import { addSavedJobIdToCache, removeSavedJobIdFromCache } from './savedJobsCache.js';
 
 const pageAccents = [
@@ -39,6 +45,9 @@ const pageAccents = [
 ];
 
 const getBackTarget = (state) => (typeof state?.from === 'string' ? state.from : '/jobs');
+
+const graphqlErrorMessage = (err) =>
+  err?.graphQLErrors?.[0]?.message || err?.message || 'Something went wrong';
 
 const JobDetailPage = () => {
   const { jobId } = useParams();
@@ -83,6 +92,21 @@ const JobDetailPage = () => {
     refetchQueries: [{ query: GET_SAVED_JOB_IDS }, { query: GET_MY_SAVED_JOBS }],
     awaitRefetchQueries: true,
   });
+  const [submitOpen, setSubmitOpen] = React.useState(false);
+  const [submitMessage, setSubmitMessage] = React.useState('');
+  const [submitError, setSubmitError] = React.useState(null);
+  const [submitLoading, setSubmitLoading] = React.useState(false);
+  const [submitWork] = useMutation(SUBMIT_WORK, {
+    refetchQueries: [
+      { query: GET_JOB, variables: { id: jobId } },
+      { query: GET_MY_BID_FOR_JOB, variables: { jobId } },
+      { query: GET_MY_BIDS },
+      { query: GET_MY_NOTIFICATIONS, variables: { limit: 12 } },
+      { query: UNREAD_NOTIFICATION_COUNT },
+    ],
+    awaitRefetchQueries: true,
+  });
+
   const job = data?.job;
   const myBid = myBidData?.myBidForJob ?? null;
   const savedJobIdSet = React.useMemo(
@@ -102,6 +126,39 @@ const JobDetailPage = () => {
       return;
     }
     saveJob({ variables });
+  };
+
+  const openSubmitWork = () => {
+    setSubmitError(null);
+    setSubmitMessage('');
+    setSubmitOpen(true);
+  };
+
+  const closeSubmitWork = () => {
+    if (!submitLoading) {
+      setSubmitOpen(false);
+      setSubmitError(null);
+      setSubmitMessage('');
+    }
+  };
+
+  const handleSubmitWork = async () => {
+    if (!job) {
+      return;
+    }
+    setSubmitLoading(true);
+    setSubmitError(null);
+    try {
+      await submitWork({
+        variables: { jobId: job.id, message: submitMessage.trim() || null },
+      });
+      setSubmitOpen(false);
+      setSubmitMessage('');
+    } catch (err) {
+      setSubmitError({ message: graphqlErrorMessage(err) });
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   return (
@@ -153,16 +210,43 @@ const JobDetailPage = () => {
               myBid={myBid}
               loadingMyBid={loadingMyBid}
               onToggleSaved={handleToggleSaved}
+              onSubmitWork={openSubmitWork}
             />
           </Grid>
         ) : null}
 
-        {job?.status && job.status !== 'OPEN' ? (
+        {job?.status && job.status !== 'OPEN' && myBid?.status !== 'ACCEPTED' ? (
           <Text color="orange.200" fontSize="sm" textAlign="center">
             This job is currently {job.status.toLowerCase().replace('_', ' ')}. Proposal actions should stay disabled.
           </Text>
         ) : null}
       </VStack>
+
+      <ConfirmDialog
+        open={submitOpen}
+        title="Submit work?"
+        description={`This tells the client the work for "${job?.title || 'this job'}" is ready to review. They can approve & release or request changes. Optional note below.`}
+        confirmLabel="Submit work"
+        loading={submitLoading}
+        error={submitError}
+        onConfirm={handleSubmitWork}
+        onClose={closeSubmitWork}
+      >
+        <Field.Root>
+          <Field.Label color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+            Note to the client (optional)
+          </Field.Label>
+          <Textarea
+            value={submitMessage}
+            onChange={(event) => setSubmitMessage(event.target.value)}
+            placeholder="What did you deliver, and where can they find it?"
+            minH="110px"
+            resize="vertical"
+            maxLength={2000}
+            {...inputStyles}
+          />
+        </Field.Root>
+      </ConfirmDialog>
     </PageShell>
   );
 };

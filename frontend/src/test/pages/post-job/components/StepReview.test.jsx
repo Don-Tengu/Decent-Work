@@ -87,8 +87,8 @@ const baseDraft = {
   hourlyRateMin: '',
   hourlyRateMax: '',
   fixedBudget: '500',
-  currencyCode: 'USD',
-  paymentModel: 'OFF_CHAIN_NEGOTIATED',
+  currencyCode: 'USDC',
+  paymentModel: 'ON_CHAIN_ESCROW',
   description:
     'We need a smart contract auditor to review Solidity contracts and produce a clear security report.',
   attachments: [],

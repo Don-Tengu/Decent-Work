@@ -74,8 +74,11 @@ const JobDetailFacts = ({ job }) => {
     {
       icon: ShieldCheck,
       label: 'Payment',
-      value: paymentModelLabels[job.paymentModel] || 'Escrow-ready',
-      detail: 'Escrow workflow will be finalized after proposal acceptance',
+      value: paymentModelLabels[job.paymentModel] || 'On-chain escrow',
+      detail:
+        job.paymentModel === 'OFF_CHAIN_NEGOTIATED'
+          ? 'Legacy simulated escrow — funds are not locked on-chain'
+          : 'Client funds USDC escrow after hire, then releases when work is approved',
     },
   ];
 

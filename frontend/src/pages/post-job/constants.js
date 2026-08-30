@@ -66,6 +66,8 @@ export const JOB_DRAFT_STEP_ORDER = {
 
 export const DEFAULT_HOURLY_RATE_MIN = '17.00';
 export const DEFAULT_HOURLY_RATE_MAX = '49.00';
+export const POSTING_PAYMENT_MODEL = 'ON_CHAIN_ESCROW';
+export const POSTING_CURRENCY_CODE = 'USDC';
 
 export const JOB_POST_INITIAL_DRAFT = {
   draftStep: JOB_DRAFT_STEPS.SKILLS,
@@ -77,11 +79,11 @@ export const JOB_POST_INITIAL_DRAFT = {
   skillIds: [],
   skillNamesById: {},
   customSkillNames: [],
-  scopeSize: 'MEDIUM',
-  scopeDurationAmount: '1',
-  scopeDurationUnit: 'MONTH',
-  scopeDurationDays: 30,
-  experienceLevel: 'INTERMEDIATE',
+  scopeSize: '',
+  scopeDurationAmount: '',
+  scopeDurationUnit: '',
+  scopeDurationDays: 0,
+  experienceLevel: '',
   contractToHire: false,
   // MVP: fixed-price only (hourly UI hidden until payment support lands)
   budgetType: 'FIXED',
@@ -90,8 +92,8 @@ export const JOB_POST_INITIAL_DRAFT = {
   hourlyRateMin: '',
   hourlyRateMax: '',
   fixedBudget: '',
-  currencyCode: 'USD',
-  paymentModel: 'OFF_CHAIN_NEGOTIATED',
+  currencyCode: POSTING_CURRENCY_CODE,
+  paymentModel: POSTING_PAYMENT_MODEL,
   description: '',
   attachments: [],
 };
@@ -191,11 +193,15 @@ export const formatMoneyInputValue = (value) => {
   return Number.isFinite(amount) ? amount.toFixed(2) : '';
 };
 
-export const formatCurrencyAmount = (value) => {
+export const formatCurrencyAmount = (value, currencyCode = POSTING_CURRENCY_CODE) => {
   const amount = parseBudgetAmount(value);
 
   if (amount === null) {
     return '';
+  }
+
+  if (currencyCode === 'ETH') {
+    return `Ξ ${amount.toFixed(2)}`;
   }
 
   return `$${amount.toFixed(2)}`;
@@ -339,14 +345,14 @@ export const isBudgetStepComplete = (draft) => !getBudgetValidationError(draft);
 
 export const getBudgetSummary = (draft) => {
   if (draft.budgetType === 'HOURLY') {
-    const minLabel = formatCurrencyAmount(draft.hourlyRateMin);
-    const maxLabel = formatCurrencyAmount(draft.hourlyRateMax);
+    const minLabel = formatCurrencyAmount(draft.hourlyRateMin, draft.currencyCode);
+    const maxLabel = formatCurrencyAmount(draft.hourlyRateMax, draft.currencyCode);
 
     return minLabel && maxLabel ? `${minLabel} - ${maxLabel} /hr` : 'Hourly rate not set';
   }
 
   if (draft.budgetType === 'FIXED') {
-    const fixedBudgetLabel = formatCurrencyAmount(draft.fixedBudget);
+    const fixedBudgetLabel = formatCurrencyAmount(draft.fixedBudget, draft.currencyCode);
 
     return fixedBudgetLabel ? `${fixedBudgetLabel} fixed price` : 'Fixed budget not set';
   }
@@ -496,7 +502,7 @@ export const getDraftStepCandidateForSave = (draft, activeStepIndex) => {
   }
 
   if (activeStepIndex >= 4) {
-    return isDetailsStepComplete(draft) ? JOB_DRAFT_STEPS.REVIEW : JOB_DRAFT_STEPS.DETAILS;
+    return JOB_DRAFT_STEPS.DETAILS;
   }
 
   return JOB_DRAFT_STEPS.SKILLS;

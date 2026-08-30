@@ -27,7 +27,6 @@ import {
   getStepProgressValue,
   getPositiveIntegerInputValue,
   formatMoneyInputValue,
-  isActiveDraftStepValidForSave,
   DEFAULT_HOURLY_RATE_MAX,
   DEFAULT_HOURLY_RATE_MIN,
   isDescriptionErrorMessage,
@@ -35,85 +34,14 @@ import {
   JOB_POST_INITIAL_DRAFT,
   JOB_POST_STEPS,
   JOB_DRAFT_STEPS,
+  POSTING_CURRENCY_CODE,
+  POSTING_PAYMENT_MODEL,
   MAX_JOB_ATTACHMENTS,
   MAX_JOB_ATTACHMENT_BYTES,
   MAX_JOB_SKILLS,
   MIN_JOB_SKILLS,
   parseBudgetAmount,
 } from './constants.js';
-
-const DRAFT_FIELDS_TO_RESTORE_BY_ACTIVE_STEP_INDEX = {
-  1: [
-    'categoryId',
-    'categoryName',
-    'specialtyId',
-    'specialtyName',
-    'skillIds',
-    'skillNamesById',
-    'customSkillNames',
-    'scopeSize',
-    'scopeDurationAmount',
-    'scopeDurationUnit',
-    'scopeDurationDays',
-    'experienceLevel',
-    'contractToHire',
-    'budgetType',
-    'budgetNotReadyConfirmed',
-    'budgetNotReadyType',
-    'hourlyRateMin',
-    'hourlyRateMax',
-    'fixedBudget',
-    'currencyCode',
-    'paymentModel',
-    'description',
-    'attachments',
-  ],
-  2: [
-    'scopeSize',
-    'scopeDurationAmount',
-    'scopeDurationUnit',
-    'scopeDurationDays',
-    'experienceLevel',
-    'contractToHire',
-    'budgetType',
-    'budgetNotReadyConfirmed',
-    'budgetNotReadyType',
-    'hourlyRateMin',
-    'hourlyRateMax',
-    'fixedBudget',
-    'currencyCode',
-    'paymentModel',
-    'description',
-    'attachments',
-  ],
-  3: [
-    'budgetType',
-    'budgetNotReadyConfirmed',
-    'budgetNotReadyType',
-    'hourlyRateMin',
-    'hourlyRateMax',
-    'fixedBudget',
-    'currencyCode',
-    'paymentModel',
-    'description',
-    'attachments',
-  ],
-  4: ['description', 'attachments'],
-};
-
-const getDraftForSafeSave = (draft, savedDraft, activeStepIndex, activeStepIsValid) => {
-  if (!savedDraft || activeStepIsValid) {
-    return draft;
-  }
-
-  return (DRAFT_FIELDS_TO_RESTORE_BY_ACTIVE_STEP_INDEX[activeStepIndex] ?? []).reduce(
-    (nextDraft, fieldName) => ({
-      ...nextDraft,
-      [fieldName]: savedDraft[fieldName],
-    }),
-    draft
-  );
-};
 
 const getCreateJobInput = (draft) => {
   const isHourly = draft.budgetType === 'HOURLY';
@@ -135,13 +63,18 @@ const getCreateJobInput = (draft) => {
     hourlyRateMin: isHourly ? parseBudgetAmount(draft.hourlyRateMin) : null,
     hourlyRateMax: isHourly ? parseBudgetAmount(draft.hourlyRateMax) : null,
     fixedBudget: isFixed ? parseBudgetAmount(draft.fixedBudget) : null,
-    currencyCode: draft.currencyCode,
-    paymentModel: draft.paymentModel,
+    currencyCode: POSTING_CURRENCY_CODE,
+    paymentModel: POSTING_PAYMENT_MODEL,
   };
 };
 
 const getNullableMoney = (draft, fieldName, isActive) =>
   isActive ? parseBudgetAmount(draft[fieldName]) : null;
+
+const getNullableDurationAmount = (value) => {
+  const amount = Number.parseInt(String(value ?? ''), 10);
+  return Number.isInteger(amount) && amount >= 1 ? amount : null;
+};
 
 const getSaveJobDraftInput = (draft, draftStep) => {
   const isHourly = draft.budgetType === 'HOURLY';
@@ -155,17 +88,17 @@ const getSaveJobDraftInput = (draft, draftStep) => {
     skillIds: draft.skillIds ?? [],
     customSkillNames: draft.customSkillNames ?? [],
     draftStep,
-    scopeSize: draft.scopeSize,
-    scopeDurationAmount: Number.parseInt(draft.scopeDurationAmount, 10) || 1,
-    scopeDurationUnit: draft.scopeDurationUnit,
-    experienceLevel: draft.experienceLevel,
+    scopeSize: draft.scopeSize || null,
+    scopeDurationAmount: getNullableDurationAmount(draft.scopeDurationAmount),
+    scopeDurationUnit: draft.scopeDurationUnit || null,
+    experienceLevel: draft.experienceLevel || null,
     contractToHire: draft.contractToHire,
     budgetType: draft.budgetType,
     hourlyRateMin: getNullableMoney(draft, 'hourlyRateMin', isHourly),
     hourlyRateMax: getNullableMoney(draft, 'hourlyRateMax', isHourly),
     fixedBudget: getNullableMoney(draft, 'fixedBudget', isFixed),
-    currencyCode: draft.currencyCode,
-    paymentModel: draft.paymentModel,
+    currencyCode: POSTING_CURRENCY_CODE,
+    paymentModel: POSTING_PAYMENT_MODEL,
   };
 };
 
@@ -203,11 +136,11 @@ const getDraftFromJob = (job) => {
     customSkillNames: jobSkillTags
       .filter((tag) => tag.custom)
       .map((tag) => tag.name),
-    scopeSize: job.scopeSize ?? JOB_POST_INITIAL_DRAFT.scopeSize,
-    scopeDurationAmount: String(job.scopeDurationAmount ?? JOB_POST_INITIAL_DRAFT.scopeDurationAmount),
-    scopeDurationUnit: job.scopeDurationUnit ?? JOB_POST_INITIAL_DRAFT.scopeDurationUnit,
-    scopeDurationDays: job.scopeDurationDays ?? JOB_POST_INITIAL_DRAFT.scopeDurationDays,
-    experienceLevel: job.experienceLevel ?? JOB_POST_INITIAL_DRAFT.experienceLevel,
+    scopeSize: job.scopeSize ?? '',
+    scopeDurationAmount: job.scopeDurationAmount == null ? '' : String(job.scopeDurationAmount),
+    scopeDurationUnit: job.scopeDurationUnit ?? '',
+    scopeDurationDays: job.scopeDurationDays ?? 0,
+    experienceLevel: job.experienceLevel ?? '',
     contractToHire: Boolean(job.contractToHire),
     budgetType: job.budgetType ?? JOB_POST_INITIAL_DRAFT.budgetType,
     budgetNotReadyConfirmed: job.budgetType === 'NOT_READY',
@@ -215,8 +148,8 @@ const getDraftFromJob = (job) => {
     hourlyRateMin: job.hourlyRateMin == null ? '' : formatMoneyInputValue(job.hourlyRateMin),
     hourlyRateMax: job.hourlyRateMax == null ? '' : formatMoneyInputValue(job.hourlyRateMax),
     fixedBudget: job.fixedBudget == null ? '' : formatMoneyInputValue(job.fixedBudget),
-    currencyCode: job.currencyCode ?? JOB_POST_INITIAL_DRAFT.currencyCode,
-    paymentModel: job.paymentModel ?? JOB_POST_INITIAL_DRAFT.paymentModel,
+    currencyCode: POSTING_CURRENCY_CODE,
+    paymentModel: POSTING_PAYMENT_MODEL,
     attachments: (job.attachments ?? []).map(getPersistedAttachmentDraft),
   };
 };
@@ -421,9 +354,7 @@ const PostJob = () => {
     setSubmitError('');
   };
 
-  const handleDescriptionBlur = (event) => {
-    setDetailsError(getDescriptionValidationError(event.target.value));
-  };
+  const handleDescriptionBlur = () => {};
 
   const handleAttachmentsAdd = (files) => {
     if (!files.length) {
@@ -469,9 +400,11 @@ const PostJob = () => {
   const handleAttachmentRemove = async (attachmentId) => {
     const attachment = draft.attachments?.find((item) => item.id === attachmentId);
 
-    if (attachment?.persisted && draftJobId) {
+    const jobId = draftJobId || draftJobIdRef.current;
+
+    if (attachment?.persisted && jobId) {
       try {
-        await deleteJobAttachment(draftJobId, attachmentId);
+        await deleteJobAttachment(jobId, attachmentId);
       } catch (error) {
         setDetailsError(
           `Unable to remove ${getAttachmentDisplayName(attachment)}. ${error.message || 'Please try again.'}`
@@ -641,19 +574,10 @@ const PostJob = () => {
   };
 
   const handleBudgetAmountBlur = (fieldName) => {
-    const formattedValue = formatMoneyInputValue(draft[fieldName]);
-
     setDraft((currentDraft) => ({
       ...currentDraft,
       [fieldName]: formatMoneyInputValue(currentDraft[fieldName]),
     }));
-
-    const nextDraft = {
-      ...draft,
-      [fieldName]: formattedValue,
-    };
-
-    setBudgetError(getBudgetValidationError(nextDraft));
   };
 
   const handleContinueWithoutBudget = (budgetType) => {
@@ -671,15 +595,6 @@ const PostJob = () => {
     if (activeStepIndex < JOB_POST_STEPS.length - 1) {
       setActiveStepIndex((currentStep) => currentStep + 1);
     }
-  };
-
-  const handlePaymentModelChange = (value) => {
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      paymentModel: value,
-      // On-chain escrow uses native ETH amounts (bid amount is sent as msg.value).
-      currencyCode: value === 'ON_CHAIN_ESCROW' ? 'ETH' : currentDraft.currencyCode || 'USD',
-    }));
   };
 
   const handleSubmitJob = async () => {
@@ -767,6 +682,55 @@ const PostJob = () => {
     }
   };
 
+  const commitDraft = async (draftStep) => {
+    const result = await saveJobDraft({
+      variables: {
+        id: draftJobIdRef.current,
+        input: getSaveJobDraftInput(draft, draftStep),
+      },
+    });
+    const savedJob = result.data?.saveJobDraft;
+    const savedJobId = savedJob?.id;
+
+    if (!savedJobId) {
+      throw new Error('Unable to save this draft.');
+    }
+
+    setDraftJobId(savedJobId);
+    draftJobIdRef.current = savedJobId;
+
+    let savedDraftSnapshot = {
+      ...(savedJob ? getDraftFromJob(savedJob) : draft),
+      draftStep,
+    };
+    let savedAttachments = savedDraftSnapshot.attachments ?? [];
+    const localAttachments = (draft.attachments ?? []).filter((attachment) => attachment.file);
+    if (localAttachments.length) {
+      setUploadingAttachments(true);
+      const uploadedAttachments = await uploadJobAttachments(savedJobId, localAttachments);
+      uploadedAttachments.forEach((attachment) => persistedAttachmentIdsRef.current.add(attachment.id));
+
+      savedAttachments = [
+        ...(draft.attachments ?? []).filter((attachment) => !attachment.file),
+        ...uploadedAttachments,
+      ];
+      savedDraftSnapshot = {
+        ...savedDraftSnapshot,
+        attachments: savedAttachments,
+      };
+    }
+
+    savedDraftRef.current = savedDraftSnapshot;
+    savedDraftStepRef.current = draftStep;
+    setDraft(savedDraftSnapshot);
+
+    if (!routeJobId) {
+      window.history.replaceState(null, '', `/post-job/${savedJobId}`);
+    }
+
+    return savedDraftSnapshot;
+  };
+
   const handleSaveDraft = async () => {
     if (savingDraftRef.current) {
       return;
@@ -777,79 +741,32 @@ const PostJob = () => {
       return;
     }
 
+    if (activeStep.id === 'details') {
+      const detailsDescriptionError = getDescriptionValidationError(draft.description);
+
+      if (detailsDescriptionError) {
+        setDetailsError(detailsDescriptionError);
+        setDraftSaveSuccess('');
+        setDraftSaveError('');
+        return;
+      }
+    }
+
     savingDraftRef.current = true;
     setSavingDraftLocally(true);
     setDraftSaveError('');
     setDraftSaveSuccess('');
     setSubmitError('');
+    setBudgetError('');
+    setDetailsError('');
 
     try {
-      const activeStepIsValid = isActiveDraftStepValidForSave(draft, activeStepIndex);
       const nextDraftStep = getDraftStepForSave(
         draft,
         activeStepIndex,
         savedDraftStepRef.current
       );
-      const draftForSave = getDraftForSafeSave(
-        draft,
-        savedDraftRef.current,
-        activeStepIndex,
-        activeStepIsValid
-      );
-      const result = await saveJobDraft({
-        variables: {
-          id: draftJobIdRef.current,
-          input: getSaveJobDraftInput(draftForSave, nextDraftStep),
-        },
-      });
-      const savedJob = result.data?.saveJobDraft;
-      const savedJobId = savedJob?.id;
-
-      if (!savedJobId) {
-        throw new Error('Unable to save this draft.');
-      }
-
-      setDraftJobId(savedJobId);
-      draftJobIdRef.current = savedJobId;
-
-      let savedDraftSnapshot = {
-        ...(savedJob ? getDraftFromJob(savedJob) : draftForSave),
-        draftStep: nextDraftStep,
-      };
-      let savedAttachments = savedDraftSnapshot.attachments ?? [];
-      const localAttachments = (draftForSave.attachments ?? []).filter((attachment) => attachment.file);
-      if (localAttachments.length) {
-        setUploadingAttachments(true);
-        const uploadedAttachments = await uploadJobAttachments(savedJobId, localAttachments);
-        uploadedAttachments.forEach((attachment) => persistedAttachmentIdsRef.current.add(attachment.id));
-
-        savedAttachments = [
-          ...(draftForSave.attachments ?? []).filter((attachment) => !attachment.file),
-          ...uploadedAttachments,
-        ];
-        savedDraftSnapshot = {
-          ...savedDraftSnapshot,
-          attachments: savedAttachments,
-        };
-      }
-
-      savedDraftRef.current = savedDraftSnapshot;
-      savedDraftStepRef.current = savedDraftSnapshot.draftStep ?? nextDraftStep;
-
-      if (activeStepIsValid) {
-        setDraft(savedDraftSnapshot);
-      } else {
-        setDraft((currentDraft) => ({
-          ...currentDraft,
-          draftStep: savedDraftStepRef.current,
-          ...(localAttachments.length ? { attachments: savedAttachments } : {}),
-        }));
-      }
-
-      if (!routeJobId) {
-        window.history.replaceState(null, '', `/post-job/${savedJobId}`);
-      }
-
+      await commitDraft(nextDraftStep);
       setDraftSaveSuccess('Draft saved. You can continue from your dashboard later.');
     } catch (error) {
       setDraftSaveError(error.message || 'Unable to save this draft. Please try again.');
@@ -922,8 +839,30 @@ const PostJob = () => {
         return;
       }
 
+      if (savingDraftRef.current) {
+        return;
+      }
+
+      savingDraftRef.current = true;
+      setSavingDraftLocally(true);
+      setDetailsError('');
       setSubmitError('');
-      setIsReviewing(true);
+      setDraftSaveSuccess('');
+
+      const openReview = async () => {
+        try {
+          await commitDraft(JOB_DRAFT_STEPS.REVIEW);
+          setIsReviewing(true);
+        } catch (error) {
+          setDetailsError(error.message || 'Unable to save this draft. Please try again.');
+        } finally {
+          savingDraftRef.current = false;
+          setSavingDraftLocally(false);
+          setUploadingAttachments(false);
+        }
+      };
+
+      openReview();
       return;
     }
 
@@ -1038,7 +977,17 @@ const PostJob = () => {
               </Text>
             </Box>
 
-            <HStack gap={3} justify={{ base: 'stretch', md: 'flex-end' }}>
+            <HStack gap={3} justify={{ base: 'stretch', md: 'flex-end' }} flexWrap="wrap">
+              <Button
+                type="button"
+                variant="ghost"
+                color="rgba(226, 232, 240, 0.78)"
+                flex={{ base: '1', md: '0 0 auto' }}
+                onClick={() => navigate('/dashboard')}
+                _hover={{ bg: 'rgba(148, 163, 184, 0.1)', color: 'white' }}
+              >
+                Exit
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -1144,7 +1093,6 @@ const PostJob = () => {
                 onBudgetAmountChange={handleBudgetAmountChange}
                 onBudgetAmountBlur={handleBudgetAmountBlur}
                 onContinueWithoutBudget={handleContinueWithoutBudget}
-                onPaymentModelChange={handlePaymentModelChange}
                 taxonomyNodes={taxonomyNodes}
                 taxonomyLoading={taxonomyLoading}
                 taxonomyError={taxonomyError}

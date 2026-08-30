@@ -8,17 +8,17 @@
 
 ## 1. Summary
 
-Replace simulated “escrow on hire” with a real **client-funded, client-released ETH escrow** using the existing `FreelanceEscrow.sol` contract.
+Replace simulated “escrow on hire” with a real **client-funded, client-released USDC escrow** using `FreelanceEscrow.sol` (ERC-20, 6 decimals).
 
 | Today | Target (MVP) |
 |-------|----------------|
 | `acceptBid` → DB `ESCROWED` (no money) | `acceptBid` → DB `AWAITING_FUNDING` |
 | Release flips DB only | Client wallet calls `releasePayment`; backend verifies tx |
 | Wallet connect only | Fund + release via MetaMask + ethers Contract |
-| Amounts feel like USD | On-chain jobs priced/paid in **ETH** |
+| Amounts feel like USD | On-chain jobs priced/paid in **USDC** (Anvil / Base Sepolia / Base) |
 
-**In scope:** fixed-price, single payment per job, **Foundry** (Anvil local + optional Sepolia).  
-**Out of scope:** milestones, hourly, auto-release, USDC, fiat, security holds, Upwork-style balance/withdraw.
+**In scope:** fixed-price, single payment per job, **USDC**, Foundry (Anvil, Base Sepolia, Base).  
+**Out of scope:** milestones, hourly, auto-release, USDT (next phase; on-chain allowlist exists), fiat, security holds, Upwork-style balance/withdraw.
 
 ---
 

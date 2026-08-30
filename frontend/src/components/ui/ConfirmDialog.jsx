@@ -16,6 +16,7 @@ const ConfirmDialog = ({
   headerBadge,
   loading = false,
   error,
+  children,
   onConfirm,
   onClose,
 }) => (
@@ -67,6 +68,7 @@ const ConfirmDialog = ({
               <Text color="rgba(226, 232, 240, 0.72)" lineHeight="1.7">
                 {description}
               </Text>
+              {children}
               {error ? (
                 <Text color="red.200" fontSize="sm" role="alert">
                   {error.message}

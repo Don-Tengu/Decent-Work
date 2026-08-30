@@ -27,6 +27,7 @@ const ProposalCard = ({
   onWithdrawOffer,
   onFund,
   onRelease,
+  onRequestChanges,
 }) => {
   const freelancer = bid.freelancer;
   const name = getDisplayName(freelancer);
@@ -36,12 +37,13 @@ const ProposalCard = ({
   const meta = [formatRole(freelancer?.role), memberSince].filter(Boolean).join(' · ');
 
   const isAccepted = bid.status === 'ACCEPTED';
-  const { canOffer, canWithdrawOffer, canFund, canRelease, paymentNote } = getPaymentActionFlags({
-    bid,
-    jobStatus,
-    payment,
-    hasOutstandingOffer,
-  });
+  const { canOffer, canWithdrawOffer, canFund, canRelease, canRequestChanges, releaseLabel, paymentNote } =
+    getPaymentActionFlags({
+      bid,
+      jobStatus,
+      payment,
+      hasOutstandingOffer,
+    });
 
   // After hire, non-winners should read as not selected even if the row was
   // never flipped to REJECTED (older hires before competing-bid reject).
@@ -141,7 +143,12 @@ const ProposalCard = ({
             ) : null}
             {canRelease ? (
               <Button type="button" onClick={() => onRelease?.(bid)} px={5} {...greenSolidButtonStyles}>
-                Release payment
+                {releaseLabel}
+              </Button>
+            ) : null}
+            {canRequestChanges ? (
+              <Button type="button" onClick={() => onRequestChanges?.(bid)} px={5} {...subtlePillButtonStyles}>
+                Request changes
               </Button>
             ) : null}
             <Button type="button" onClick={openFreelancer} size="sm" px={4} {...subtlePillButtonStyles}>

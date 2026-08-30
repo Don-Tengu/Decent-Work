@@ -35,14 +35,17 @@ Redis is provisioned in Docker and configured in Spring, but is not used by appl
 | Place bid / proposal form + bid attachments | Done |
 | Save / unsave jobs | Done |
 | Client offer → freelancer accept (`offerBid` / `acceptOffer`) | Done |
-| In-app notifications (offer / accept / decline / not selected) | Done |
+| In-app notifications (offer / accept / decline / not selected / work submitted / changes requested) | Done |
+| Submit work → client review / request changes / release | Done |
 | Release payment → complete job | Done (simulated or on-chain) |
 | Freelancer profile page | Scaffold (many sections “coming soon”) |
 | On-chain escrow fund / release | **MVP wired** (Foundry + MetaMask + RPC verify) |
 
 ### Hire & payment loops
 
-**Hiring (both payment models)**
+New job posts are **on-chain USDC escrow only** (Anvil / Base Sepolia / Base). Existing `OFF_CHAIN_NEGOTIATED` jobs still complete with simulated escrow.
+
+**Hiring**
 
 1. Client **Offer** (`offerBid`) → bid `OFFERED`, job stays `OPEN`, other proposals stay pending, freelancer notified in-app.
 2. Freelancer **Accept** (`acceptOffer`) → bid `ACCEPTED`, competing `PENDING` → `REJECTED`, job `IN_PROGRESS`, payment created; **or Decline** → bid returns to `PENDING`.
@@ -50,15 +53,21 @@ Redis is provisioned in Docker and configured in Spring, but is not used by appl
 
 Offered/hired jobs are found via **My proposals**, dashboard offers/active contracts, and notifications — not marketplace search (which stays `OPEN`-only).
 
-**Off-chain (`paymentModel = OFF_CHAIN_NEGOTIATED`, default)**
+**Off-chain (`paymentModel = OFF_CHAIN_NEGOTIATED`, legacy jobs only)**
 
-1. After accept → payment `ESCROWED` (simulated) → Release → `RELEASED` / job `COMPLETED`.
+1. After accept → payment `ESCROWED` (simulated).
+2. Freelancer **Submit work** (`submitWork`) → payment `IN_REVIEW`; client is notified.
+3. Client **Approve & release** (`releasePayment`) → `RELEASED` / job `COMPLETED`, **or Request changes** (`requestChanges`) → back to `ESCROWED`.
+4. Client may also release from `ESCROWED` without waiting for a submission.
 
-**On-chain (`paymentModel = ON_CHAIN_ESCROW`)**
+**On-chain (`paymentModel = ON_CHAIN_ESCROW`, USDC)**
 
 1. After accept → payment `AWAITING_FUNDING`.
-2. Client **Fund escrow** (MetaMask `createEscrow`) → backend verifies → `ESCROWED`.
-3. Client **Release payment** (MetaMask `releasePayment`) → backend verifies → `RELEASED` / job `COMPLETED` (freelancer ~95%, platform 5%).
+2. Client **Fund escrow** (MetaMask: approve USDC + `createEscrow`) → backend verifies → `ESCROWED`.
+3. Freelancer **Submit work** after funding (same `IN_REVIEW` loop as off-chain).
+4. Client **Approve & release** (MetaMask `releasePayment`) → backend verifies → `RELEASED` / job `COMPLETED` (freelancer ~95% USDC, platform 5%), or request changes while funds stay in escrow.
+
+Networks: **Anvil** (local MockUSDC), **Base Sepolia** (dev), **Base** (prod). Set `VITE_CHAIN_KEY`. USDT is the next token; the contract already has an allowlist. Gas is still ETH.
 
 See `docs/payments/` and `smart-contracts/README.md`.
 
@@ -138,19 +147,21 @@ forge script script/Deploy.s.sol:Deploy \
   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
-Then set env (backend + frontend) to the deployed address:
+Then set env to the deployed **escrow** and **USDC** addresses (Anvil prints both):
 
 ```bash
-export ESCROW_CONTRACT_ADDRESS=0x...   # forge script output
+export ESCROW_CONTRACT_ADDRESS=0x...
+export WEB3_TOKEN_ADDRESS=0x...
 export WEB3_PROVIDER_URL=http://127.0.0.1:8545
 export WEB3_CHAIN_ID=31337
 
 # frontend/.env.local
+VITE_CHAIN_KEY=anvil
 VITE_ESCROW_ADDRESS=0x...
-VITE_CHAIN_ID=31337
-VITE_CHAIN_NAME=Anvil
-VITE_RPC_URL=http://127.0.0.1:8545
+VITE_TOKEN_ADDRESS=0x...
 ```
+
+See `smart-contracts/README.md` for Base Sepolia (`VITE_CHAIN_KEY=base-sepolia`) and Base (`base`).
 
 ## Main app routes
 

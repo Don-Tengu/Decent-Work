@@ -84,8 +84,8 @@ const jobResponse = {
   hourlyRateMin: null,
   hourlyRateMax: null,
   fixedBudget: 500,
-  currencyCode: 'USD',
-  paymentModel: 'OFF_CHAIN_NEGOTIATED',
+  currencyCode: 'USDC',
+  paymentModel: 'ON_CHAIN_ESCROW',
   category: {
     __typename: 'SkillTaxonomyNode',
     id: 'cat-1',
@@ -134,7 +134,7 @@ const mocks = [
     request: {
       query: PUBLISH_JOB,
       variables: {
-        id: null,
+        id: 'job-1',
         input: {
           title: 'Smart Contract Audit',
           description,
@@ -151,8 +151,8 @@ const mocks = [
           hourlyRateMin: null,
           hourlyRateMax: null,
           fixedBudget: 500,
-          currencyCode: 'USD',
-          paymentModel: 'OFF_CHAIN_NEGOTIATED',
+          currencyCode: 'USDC',
+          paymentModel: 'ON_CHAIN_ESCROW',
         },
       },
     },
@@ -175,17 +175,17 @@ const mocks = [
           skillIds: [],
           customSkillNames: [],
           draftStep: 'SKILLS',
-          scopeSize: 'MEDIUM',
-          scopeDurationAmount: 1,
-          scopeDurationUnit: 'MONTH',
-          experienceLevel: 'INTERMEDIATE',
+          scopeSize: null,
+          scopeDurationAmount: null,
+          scopeDurationUnit: null,
+          experienceLevel: null,
           contractToHire: false,
           budgetType: 'FIXED',
           hourlyRateMin: null,
           hourlyRateMax: null,
           fixedBudget: null,
-          currencyCode: 'USD',
-          paymentModel: 'OFF_CHAIN_NEGOTIATED',
+          currencyCode: 'USDC',
+          paymentModel: 'ON_CHAIN_ESCROW',
         },
       },
     },
@@ -195,10 +195,91 @@ const mocks = [
           ...jobResponse,
           status: 'DRAFT',
           draftStep: 'SKILLS',
+          scopeSize: null,
+          scopeDurationAmount: null,
+          scopeDurationUnit: null,
+          scopeDurationDays: null,
+          experienceLevel: null,
           description: '',
           category: null,
           specialty: null,
           jobSkillTags: [],
+          publishedAt: null,
+        },
+      },
+    },
+  },
+  {
+    request: {
+      query: SAVE_JOB_DRAFT,
+      variables: {
+        id: null,
+        input: {
+          title: 'Smart Contract Audit',
+          description,
+          categoryId: 'cat-1',
+          specialtyId: 'spec-1',
+          skillIds: [],
+          customSkillNames: ['Solidity'],
+          draftStep: 'REVIEW',
+          scopeSize: 'MEDIUM',
+          scopeDurationAmount: 1,
+          scopeDurationUnit: 'MONTH',
+          experienceLevel: 'INTERMEDIATE',
+          contractToHire: false,
+          budgetType: 'FIXED',
+          hourlyRateMin: null,
+          hourlyRateMax: null,
+          fixedBudget: 500,
+          currencyCode: 'USDC',
+          paymentModel: 'ON_CHAIN_ESCROW',
+        },
+      },
+    },
+    result: {
+      data: {
+        saveJobDraft: {
+          ...jobResponse,
+          status: 'DRAFT',
+          draftStep: 'REVIEW',
+          publishedAt: null,
+        },
+      },
+    },
+  },
+  {
+    request: {
+      query: SAVE_JOB_DRAFT,
+      variables: {
+        id: 'job-1',
+        input: {
+          title: 'Smart Contract Audit',
+          description,
+          categoryId: 'cat-1',
+          specialtyId: 'spec-1',
+          skillIds: [],
+          customSkillNames: ['Solidity'],
+          draftStep: 'REVIEW',
+          scopeSize: 'MEDIUM',
+          scopeDurationAmount: 1,
+          scopeDurationUnit: 'MONTH',
+          experienceLevel: 'INTERMEDIATE',
+          contractToHire: false,
+          budgetType: 'FIXED',
+          hourlyRateMin: null,
+          hourlyRateMax: null,
+          fixedBudget: 500,
+          currencyCode: 'USDC',
+          paymentModel: 'ON_CHAIN_ESCROW',
+        },
+      },
+    },
+    result: {
+      data: {
+        saveJobDraft: {
+          ...jobResponse,
+          status: 'DRAFT',
+          draftStep: 'REVIEW',
           publishedAt: null,
         },
       },
@@ -264,12 +345,22 @@ describe('PostJob review page', () => {
     await user.click(screen.getByRole('button', { name: /next step: scope/i }));
 
     await screen.findByRole('heading', { name: 'Estimate the scope of work' });
+    expect(screen.getByText('2/5 complete')).toBeInTheDocument();
+    expect(screen.getByText('Choose project size')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /medium/i }));
+    await user.click(screen.getByRole('button', { name: /edit duration/i }));
+    await user.type(screen.getByPlaceholderText(/time/i), '1');
+    await user.selectOptions(screen.getByRole('combobox'), 'MONTH');
+    await user.click(screen.getByRole('button', { name: /edit experience level/i }));
+    await user.click(screen.getByRole('radio', { name: /intermediate/i }));
     await user.click(screen.getByRole('button', { name: /next step: budget/i }));
 
     await screen.findByRole('heading', { name: 'Tell us about your budget.' });
     expect(screen.queryByRole('radio', { name: /hourly rate/i })).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /fixed price/i })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /on-chain eth escrow/i })).toBeInTheDocument();
+    expect(screen.getByText(/on-chain usdc escrow/i)).toBeInTheDocument();
+    expect(screen.queryByText(/off-chain/i)).not.toBeInTheDocument();
     await user.type(screen.getByRole('textbox', { name: /project budget/i }), '500');
     await user.click(screen.getByRole('button', { name: /next step: details/i }));
 
@@ -284,7 +375,7 @@ describe('PostJob review page', () => {
     expect(screen.queryByText('Step 5 of 5')).not.toBeInTheDocument();
     expect(screen.queryByText('5/5 complete')).not.toBeInTheDocument();
     expect(screen.queryByText('Step 6 of 6')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /exit/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /exit/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /back/i }));
 
@@ -410,8 +501,8 @@ describe('PostJob review page', () => {
               hourlyRateMin: null,
               hourlyRateMax: null,
               fixedBudget: 500,
-              currencyCode: 'USD',
-              paymentModel: 'OFF_CHAIN_NEGOTIATED',
+              currencyCode: 'USDC',
+              paymentModel: 'ON_CHAIN_ESCROW',
             },
           },
         },
@@ -527,6 +618,347 @@ describe('PostJob review page', () => {
     expect(screen.getByText('React')).toBeInTheDocument();
   });
 
+  it('clears previously saved skill tags when a draft is saved with none selected', async () => {
+    const user = userEvent.setup();
+    const draftWithSkills = {
+      ...jobResponse,
+      status: 'DRAFT',
+      draftStep: 'SKILLS',
+      title: 'Saved Draft',
+      description: '',
+      category: null,
+      specialty: null,
+      jobSkillTags: [
+        {
+          __typename: 'JobSkillTag',
+          id: 'job-skill-10',
+          skillId: '10',
+          name: 'React',
+          custom: false,
+          displayOrder: 1,
+          skill: {
+            __typename: 'Skill',
+            id: '10',
+            name: 'React',
+          },
+        },
+      ],
+      publishedAt: null,
+    };
+
+    renderPostJobRoute([
+      {
+        request: {
+          query: GET_SKILL_TAXONOMY,
+        },
+        result: {
+          data: {
+            skillTaxonomy: taxonomyNodes,
+          },
+        },
+      },
+      {
+        request: {
+          query: GET_JOB,
+          variables: { id: 'job-1' },
+        },
+        result: {
+          data: {
+            job: draftWithSkills,
+          },
+        },
+      },
+      {
+        request: {
+          query: SAVE_JOB_DRAFT,
+          variables: {
+            id: 'job-1',
+            input: {
+              title: 'Saved Draft',
+              description: '',
+              categoryId: null,
+              specialtyId: null,
+              skillIds: [],
+              customSkillNames: [],
+              draftStep: 'SKILLS',
+              scopeSize: 'MEDIUM',
+              scopeDurationAmount: 1,
+              scopeDurationUnit: 'MONTH',
+              experienceLevel: 'INTERMEDIATE',
+              contractToHire: false,
+              budgetType: 'FIXED',
+              hourlyRateMin: null,
+              hourlyRateMax: null,
+              fixedBudget: 500,
+              currencyCode: 'USDC',
+              paymentModel: 'ON_CHAIN_ESCROW',
+            },
+          },
+        },
+        result: {
+          data: {
+            saveJobDraft: {
+              ...draftWithSkills,
+              jobSkillTags: [],
+            },
+          },
+        },
+      },
+    ]);
+
+    expect(await screen.findByText('React')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /remove react/i }));
+    expect(screen.queryByText('React')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /save draft/i }));
+
+    expect(await screen.findByText(/draft saved/i)).toBeInTheDocument();
+    expect(screen.queryByText('React')).not.toBeInTheDocument();
+  });
+
+  it('keeps draftStep at SCOPE until scope fields are chosen and saved', async () => {
+    const user = userEvent.setup();
+    const draftAtScope = {
+      ...jobResponse,
+      status: 'DRAFT',
+      draftStep: 'SCOPE',
+      title: 'Saved Draft',
+      description: '',
+      scopeSize: null,
+      scopeDurationAmount: null,
+      scopeDurationUnit: null,
+      scopeDurationDays: null,
+      experienceLevel: null,
+      category: {
+        __typename: 'SkillTaxonomyNode',
+        id: 'cat-1',
+        name: 'Web, Mobile & Software Dev',
+      },
+      specialty: {
+        __typename: 'SkillTaxonomyNode',
+        id: 'spec-1',
+        name: 'Emerging Tech',
+      },
+      jobSkillTags: [
+        {
+          __typename: 'JobSkillTag',
+          id: 'job-skill-1',
+          skillId: null,
+          name: 'Solidity',
+          custom: true,
+          displayOrder: 1,
+          skill: null,
+        },
+      ],
+      publishedAt: null,
+    };
+
+    renderPostJobRoute([
+      {
+        request: {
+          query: GET_SKILL_TAXONOMY,
+        },
+        result: {
+          data: {
+            skillTaxonomy: taxonomyNodes,
+          },
+        },
+      },
+      {
+        request: {
+          query: GET_JOB,
+          variables: { id: 'job-1' },
+        },
+        result: {
+          data: {
+            job: draftAtScope,
+          },
+        },
+      },
+      {
+        request: {
+          query: SAVE_JOB_DRAFT,
+          variables: {
+            id: 'job-1',
+            input: {
+              title: 'Saved Draft',
+              description: '',
+              categoryId: 'cat-1',
+              specialtyId: 'spec-1',
+              skillIds: [],
+              customSkillNames: ['Solidity'],
+              draftStep: 'SCOPE',
+              scopeSize: null,
+              scopeDurationAmount: null,
+              scopeDurationUnit: null,
+              experienceLevel: null,
+              contractToHire: false,
+              budgetType: 'FIXED',
+              hourlyRateMin: null,
+              hourlyRateMax: null,
+              fixedBudget: 500,
+              currencyCode: 'USDC',
+              paymentModel: 'ON_CHAIN_ESCROW',
+            },
+          },
+        },
+        result: {
+          data: {
+            saveJobDraft: draftAtScope,
+          },
+        },
+      },
+    ]);
+
+    expect(await screen.findByRole('heading', { name: 'Estimate the scope of work' })).toBeInTheDocument();
+    expect(screen.getByText('Choose project size')).toBeInTheDocument();
+    expect(screen.getByText('2/5 complete')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /save draft/i }));
+
+    expect(await screen.findByText(/draft saved/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Estimate the scope of work' })).toBeInTheDocument();
+    expect(screen.getByText('Choose project size')).toBeInTheDocument();
+  });
+
+  it('allows saving a budget-step draft without an amount and only validates on next', async () => {
+    const user = userEvent.setup();
+    const draftAtBudget = {
+      ...jobResponse,
+      status: 'DRAFT',
+      draftStep: 'BUDGET',
+      title: 'Saved Draft',
+      description: '',
+      fixedBudget: null,
+      hourlyRateMin: null,
+      hourlyRateMax: null,
+      publishedAt: null,
+    };
+
+    renderPostJobRoute([
+      {
+        request: {
+          query: GET_SKILL_TAXONOMY,
+        },
+        result: {
+          data: {
+            skillTaxonomy: taxonomyNodes,
+          },
+        },
+      },
+      {
+        request: {
+          query: GET_JOB,
+          variables: { id: 'job-1' },
+        },
+        result: {
+          data: {
+            job: draftAtBudget,
+          },
+        },
+      },
+      {
+        request: {
+          query: SAVE_JOB_DRAFT,
+          variables: {
+            id: 'job-1',
+            input: {
+              title: 'Saved Draft',
+              description: '',
+              categoryId: 'cat-1',
+              specialtyId: 'spec-1',
+              skillIds: [],
+              customSkillNames: ['Solidity'],
+              draftStep: 'BUDGET',
+              scopeSize: 'MEDIUM',
+              scopeDurationAmount: 1,
+              scopeDurationUnit: 'MONTH',
+              experienceLevel: 'INTERMEDIATE',
+              contractToHire: false,
+              budgetType: 'FIXED',
+              hourlyRateMin: null,
+              hourlyRateMax: null,
+              fixedBudget: null,
+              currencyCode: 'USDC',
+              paymentModel: 'ON_CHAIN_ESCROW',
+            },
+          },
+        },
+        result: {
+          data: {
+            saveJobDraft: draftAtBudget,
+          },
+        },
+      },
+    ]);
+
+    expect(await screen.findByRole('heading', { name: /tell us about your budget/i })).toBeInTheDocument();
+
+    const budgetInput = screen.getByRole('textbox', { name: /project budget/i });
+    await user.click(budgetInput);
+    await user.click(screen.getByRole('button', { name: /save draft/i }));
+
+    expect(await screen.findByText(/draft saved/i)).toBeInTheDocument();
+    expect(screen.queryByText(/enter a fixed project budget/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /next step: details/i }));
+
+    expect(await screen.findByText(/enter a fixed project budget before moving to the next step/i)).toBeInTheDocument();
+  });
+
+  it('does not validate description when attaching a file, only on save draft or review', async () => {
+    const user = userEvent.setup();
+    const draftAtDetails = {
+      ...jobResponse,
+      status: 'DRAFT',
+      draftStep: 'DETAILS',
+      title: 'Saved Draft',
+      description: '',
+      publishedAt: null,
+    };
+
+    renderPostJobRoute([
+      {
+        request: {
+          query: GET_SKILL_TAXONOMY,
+        },
+        result: {
+          data: {
+            skillTaxonomy: taxonomyNodes,
+          },
+        },
+      },
+      {
+        request: {
+          query: GET_JOB,
+          variables: { id: 'job-1' },
+        },
+        result: {
+          data: {
+            job: draftAtDetails,
+          },
+        },
+      },
+    ]);
+
+    expect(await screen.findByRole('heading', { name: /start the conversation/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('textbox', { name: /describe what you need/i }));
+    await user.click(screen.getByRole('button', { name: /attach file/i }));
+
+    expect(screen.queryByText(/must be more than 50 characters/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /save draft/i }));
+
+    expect(await screen.findByText(/must be more than 50 characters/i)).toBeInTheDocument();
+    expect(screen.queryByText(/draft saved/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /review job post/i }));
+
+    expect(screen.getByText(/must be more than 50 characters/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Review your job post' })).not.toBeInTheDocument();
+  });
+
   it('opens a completed draft directly on the review screen', async () => {
     renderPostJobRoute([
       {
@@ -559,5 +991,9 @@ describe('PostJob review page', () => {
 
     expect(await screen.findByRole('heading', { name: 'Review your job post' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /post job/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /exit/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/dashboard');
   });
 });

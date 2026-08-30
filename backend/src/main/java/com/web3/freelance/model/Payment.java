@@ -81,6 +81,16 @@ public class Payment {
 
     private Integer platformFeePercent;
 
+    private LocalDateTime workSubmittedAt;
+
+    @Column(length = 2000)
+    private String workSubmissionMessage;
+
+    private LocalDateTime changesRequestedAt;
+
+    @Column(length = 2000)
+    private String changesRequestedMessage;
+
     @OneToOne
     @JoinColumn(name = "job_id", nullable = false, unique = true)
     private Job job;
@@ -100,13 +110,15 @@ public class Payment {
     /**
      * Payment lifecycle:
      * AWAITING_FUNDING — hired; on-chain fund pending (ON_CHAIN only)
-     * ESCROWED — funds held (simulated or verified on-chain)
+     * ESCROWED — funds held (simulated or verified on-chain); freelancer may submit work
+     * IN_REVIEW — freelancer submitted work; client may approve/release or request changes
      * RELEASED — client released; job completed
      * REFUNDED — refund path (on-chain or future simulated)
      */
     public enum PaymentStatus {
         AWAITING_FUNDING,
         ESCROWED,
+        IN_REVIEW,
         RELEASED,
         REFUNDED
     }

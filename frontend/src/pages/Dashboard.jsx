@@ -57,6 +57,7 @@ import {
   UNSAVE_JOB,
 } from '../graphql/queries';
 import { useAuth } from '../context/AuthContext';
+import { getFreelancerWorkFlags } from './jobs/paymentActions.js';
 import {
   addressesEqual,
   connectWallet,
@@ -116,7 +117,7 @@ const CLIENT_JOB_SECTIONS = [
     key: 'IN_PROGRESS',
     statuses: ['IN_PROGRESS'],
     title: 'In progress',
-    description: 'Active contracts. Release payment when the work is complete.',
+    description: 'Active contracts. Review submitted work or release payment when you are ready.',
     showPostCard: false,
   },
   {
@@ -224,7 +225,7 @@ const getJobCardMessage = (job) => {
   }
 
   if (job.status === 'IN_PROGRESS') {
-    return 'A freelancer is hired and funds are in escrow. Open the contract to release payment when work is done.';
+    return 'A freelancer is hired. Open the contract to review submitted work, request changes, or release payment.';
   }
 
   if (job.status === 'COMPLETED') {
@@ -1102,7 +1103,7 @@ const RemoveJobDialog = ({ job, loading, error, onClose, onConfirm }) => {
   const meta = JOB_STATUS_META[job?.status] ?? JOB_STATUS_META.OPEN;
   const actionLabel = isDraft ? 'Remove draft' : 'Remove posting';
   const description = isDraft
-    ? `Remove "${jobTitle}" from your dashboard? This draft will no longer be available to continue posting.`
+    ? `Remove "${jobTitle}" from your dashboard? This draft will be deleted and cannot be continued later.`
     : `Remove "${jobTitle}" from your open postings? Freelancers will no longer see it as an active job.`;
 
   return (
@@ -1490,23 +1491,42 @@ const FreelancerDashboard = ({
                     Active contracts
                   </Heading>
                   <VStack align="stretch" gap={3}>
-                    {activeContractBids.map((bid) => (
-                      <GlassPanel key={bid.id} variant="subtle" borderRadius="18px" p={4}>
-                        <HStack justify="space-between" align="center" gap={4} flexWrap="wrap">
-                          <Box minW="0">
-                            <Text color="white" fontWeight="bold">
-                              {bid.job?.title || 'Contract'}
-                            </Text>
-                            <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" mt={1}>
-                              {bid.job?.status === 'COMPLETED' ? 'Completed' : 'In progress'} · hired
-                            </Text>
-                          </Box>
-                          <Button as={Link} to={`/jobs/${bid.job.id}`} size="sm" {...subtlePillButtonStyles}>
-                            View job
-                          </Button>
-                        </HStack>
-                      </GlassPanel>
-                    ))}
+                    {activeContractBids.map((bid) => {
+                      const { canSubmitWork, awaitingReview, changesRequested, contractCopy } =
+                        getFreelancerWorkFlags(bid);
+                      return (
+                        <GlassPanel key={bid.id} variant="subtle" borderRadius="18px" p={4}>
+                          <HStack justify="space-between" align="center" gap={4} flexWrap="wrap">
+                            <Box minW="0">
+                              <Text color="white" fontWeight="bold">
+                                {bid.job?.title || 'Contract'}
+                              </Text>
+                              <Text
+                                color={
+                                  changesRequested
+                                    ? 'rgba(252, 211, 77, 0.95)'
+                                    : awaitingReview
+                                      ? 'rgba(125, 211, 252, 0.95)'
+                                      : 'rgba(134, 239, 172, 0.9)'
+                                }
+                                fontSize="sm"
+                                mt={1}
+                              >
+                                {contractCopy || 'In progress · hired'}
+                              </Text>
+                            </Box>
+                            <Button
+                              as={Link}
+                              to={canSubmitWork || awaitingReview ? '/my-bids' : `/jobs/${bid.job.id}`}
+                              size="sm"
+                              {...(canSubmitWork ? greenPillButtonStyles : subtlePillButtonStyles)}
+                            >
+                              {canSubmitWork ? 'Submit work' : awaitingReview ? 'Awaiting review' : 'View job'}
+                            </Button>
+                          </HStack>
+                        </GlassPanel>
+                      );
+                    })}
                   </VStack>
                 </VStack>
               ) : null}

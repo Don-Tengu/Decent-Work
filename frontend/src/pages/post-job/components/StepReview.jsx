@@ -22,6 +22,8 @@ import {
 import {
   DEFAULT_HOURLY_RATE_MAX,
   DEFAULT_HOURLY_RATE_MIN,
+  POSTING_CURRENCY_CODE,
+  POSTING_PAYMENT_MODEL,
   MAX_JOB_ATTACHMENT_BYTES,
   MAX_JOB_ATTACHMENTS,
   MAX_JOB_SKILLS,
@@ -707,14 +709,6 @@ const StepReview = ({
     setBudgetDialogError('');
   };
 
-  const handlePaymentModelChange = (value) => {
-    setBudgetDraft((currentDraft) => ({
-      ...currentDraft,
-      paymentModel: value,
-      currencyCode: value === 'ON_CHAIN_ESCROW' ? 'ETH' : currentDraft.currencyCode || 'USD',
-    }));
-  };
-
   const handleBudgetAmountChange = (fieldName, value) => {
     setBudgetDraft((currentDraft) => {
       const nextBudgetType = fieldName === 'fixedBudget' ? 'FIXED' : 'HOURLY';
@@ -774,8 +768,8 @@ const StepReview = ({
       hourlyRateMin: budgetDraft.hourlyRateMin,
       hourlyRateMax: budgetDraft.hourlyRateMax,
       fixedBudget: budgetDraft.fixedBudget,
-      currencyCode: budgetDraft.currencyCode,
-      paymentModel: budgetDraft.paymentModel,
+      currencyCode: POSTING_CURRENCY_CODE,
+      paymentModel: POSTING_PAYMENT_MODEL,
     });
     closeDialog();
   };
@@ -1025,7 +1019,6 @@ const StepReview = ({
             onBudgetAmountChange={handleBudgetAmountChange}
             onBudgetAmountBlur={handleBudgetAmountBlur}
             onContinueWithoutBudget={handleContinueWithoutBudget}
-            onPaymentModelChange={handlePaymentModelChange}
           />
         </VStack>
       </ReviewDialog>

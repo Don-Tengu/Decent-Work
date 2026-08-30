@@ -61,6 +61,7 @@ const submittedBid = {
   status: 'PENDING',
   createdAt: '2026-05-10T00:00:00',
   attachments: [],
+  payment: null,
 };
 
 const jobMock = (job = baseJob) => ({

@@ -24,11 +24,21 @@ export const formatCurrency = (value, currency = 'USD') => {
     return '';
   }
 
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-  }).format(amount);
+  const isoCurrency = currency === 'USDC' || currency === 'USDT' ? 'USD' : currency;
+
+  if (isoCurrency === 'ETH') {
+    return `${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)} ETH`;
+  }
+
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: isoCurrency,
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${amount} ${currency}`;
+  }
 };
 
 export const formatBudgetLabel = (job) => {

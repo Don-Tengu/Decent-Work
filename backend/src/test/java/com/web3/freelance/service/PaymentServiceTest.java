@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,6 +57,7 @@ class PaymentServiceTest {
         ReflectionTestUtils.setField(paymentService, "escrowContractAddress", "0xEscrow");
         ReflectionTestUtils.setField(paymentService, "platformFeePercent", 5);
         ReflectionTestUtils.setField(paymentService, "chainId", 31337L);
+        ReflectionTestUtils.setField(paymentService, "tokenDecimals", 6);
 
         client = User.builder()
                 .id(1L)
@@ -345,7 +347,7 @@ class PaymentServiceTest {
         when(paymentRepository.findById(100L)).thenReturn(Optional.of(released));
 
         assertThatThrownBy(() -> paymentService.releasePayment(100L, null, 1L))
-                .hasMessageContaining("escrowed funds");
+                .hasMessageContaining("escrowed or in-review");
 
         verify(paymentRepository, never()).save(any());
     }
@@ -391,18 +393,204 @@ class PaymentServiceTest {
     @Test
     void getPaymentForJobRejectsNonOwner() {
         when(jobService.getJobById(10L)).thenReturn(job);
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.getPaymentForJob(10L, 999L))
-                .hasMessageContaining("Only the job owner");
-
-        verify(paymentRepository, never()).findByJobId(any());
+                .hasMessageContaining("job owner or hired freelancer");
     }
 
     @Test
-    void toWeiStringConvertsEthDecimal() {
-        assertThat(PaymentService.toWeiString(new BigDecimal("1")))
-                .isEqualTo("1000000000000000000");
-        assertThat(PaymentService.toWeiString(new BigDecimal("1.5")))
-                .isEqualTo("1500000000000000000");
+    void getPaymentForJobReturnsPaymentForHiredFreelancer() {
+        Payment payment = Payment.builder()
+                .id(100L)
+                .status(Payment.PaymentStatus.ESCROWED)
+                .fundingMode(Payment.FundingMode.SIMULATED)
+                .escrowAddress("0x0")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(jobService.getJobById(10L)).thenReturn(job);
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.of(payment));
+
+        assertThat(paymentService.getPaymentForJob(10L, 2L)).isEqualTo(payment);
+    }
+
+    @Test
+    void submitWorkMovesEscrowedPaymentToInReview() {
+        job.setStatus(Job.JobStatus.IN_PROGRESS);
+        Payment escrowed = Payment.builder()
+                .id(100L)
+                .amount(BigDecimal.valueOf(1.5))
+                .status(Payment.PaymentStatus.ESCROWED)
+                .fundingMode(Payment.FundingMode.SIMULATED)
+                .escrowAddress("0x0")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.of(escrowed));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Payment submitted = paymentService.submitWork(10L, "  Deliverables are in the repo.  ", 2L);
+
+        assertThat(submitted.getStatus()).isEqualTo(Payment.PaymentStatus.IN_REVIEW);
+        assertThat(submitted.getWorkSubmissionMessage()).isEqualTo("Deliverables are in the repo.");
+        assertThat(submitted.getWorkSubmittedAt()).isNotNull();
+        assertThat(submitted.getChangesRequestedAt()).isNull();
+        verify(notificationService).create(
+                eq(client),
+                eq(Notification.NotificationType.WORK_SUBMITTED),
+                any(),
+                any(),
+                eq("/jobs/10/proposals"),
+                eq(10L),
+                isNull()
+        );
+    }
+
+    @Test
+    void submitWorkRejectsWhenAlreadyInReview() {
+        job.setStatus(Job.JobStatus.IN_PROGRESS);
+        Payment inReview = Payment.builder()
+                .id(100L)
+                .status(Payment.PaymentStatus.IN_REVIEW)
+                .fundingMode(Payment.FundingMode.SIMULATED)
+                .escrowAddress("0x0")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.of(inReview));
+
+        assertThatThrownBy(() -> paymentService.submitWork(10L, "again", 2L))
+                .hasMessageContaining("already submitted");
+
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void submitWorkRejectsWhenAwaitingFunding() {
+        job.setStatus(Job.JobStatus.IN_PROGRESS);
+        Payment awaiting = Payment.builder()
+                .id(100L)
+                .status(Payment.PaymentStatus.AWAITING_FUNDING)
+                .fundingMode(Payment.FundingMode.ON_CHAIN)
+                .escrowAddress("0xEscrow")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.of(awaiting));
+
+        assertThatThrownBy(() -> paymentService.submitWork(10L, null, 2L))
+                .hasMessageContaining("after funds are in escrow");
+
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void submitWorkRejectsNonHiredFreelancer() {
+        job.setStatus(Job.JobStatus.IN_PROGRESS);
+        Payment escrowed = Payment.builder()
+                .id(100L)
+                .status(Payment.PaymentStatus.ESCROWED)
+                .fundingMode(Payment.FundingMode.SIMULATED)
+                .escrowAddress("0x0")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.of(escrowed));
+
+        assertThatThrownBy(() -> paymentService.submitWork(10L, "done", 1L))
+                .hasMessageContaining("hired freelancer");
+
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void requestChangesReturnsPaymentToEscrowed() {
+        job.setStatus(Job.JobStatus.IN_PROGRESS);
+        Payment inReview = Payment.builder()
+                .id(100L)
+                .status(Payment.PaymentStatus.IN_REVIEW)
+                .fundingMode(Payment.FundingMode.SIMULATED)
+                .escrowAddress("0x0")
+                .workSubmissionMessage("First pass")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.of(inReview));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Payment updated = paymentService.requestChanges(10L, "Please add the test report.", 1L);
+
+        assertThat(updated.getStatus()).isEqualTo(Payment.PaymentStatus.ESCROWED);
+        assertThat(updated.getChangesRequestedMessage()).isEqualTo("Please add the test report.");
+        assertThat(updated.getChangesRequestedAt()).isNotNull();
+        assertThat(updated.getWorkSubmissionMessage()).isEqualTo("First pass");
+        verify(notificationService).create(
+                eq(freelancer),
+                eq(Notification.NotificationType.CHANGES_REQUESTED),
+                any(),
+                any(),
+                eq("/my-bids"),
+                eq(10L),
+                isNull()
+        );
+    }
+
+    @Test
+    void requestChangesRejectsWhenNotInReview() {
+        job.setStatus(Job.JobStatus.IN_PROGRESS);
+        Payment escrowed = Payment.builder()
+                .id(100L)
+                .status(Payment.PaymentStatus.ESCROWED)
+                .fundingMode(Payment.FundingMode.SIMULATED)
+                .escrowAddress("0x0")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(paymentRepository.findByJobId(10L)).thenReturn(Optional.of(escrowed));
+
+        assertThatThrownBy(() -> paymentService.requestChanges(10L, "nits", 1L))
+                .hasMessageContaining("after the freelancer submits");
+
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void releasePaymentFromInReviewCompletesJob() {
+        job.setStatus(Job.JobStatus.IN_PROGRESS);
+        Payment inReview = Payment.builder()
+                .id(100L)
+                .amount(BigDecimal.valueOf(1.5))
+                .status(Payment.PaymentStatus.IN_REVIEW)
+                .fundingMode(Payment.FundingMode.SIMULATED)
+                .escrowAddress("0x0")
+                .job(job)
+                .freelancer(freelancer)
+                .client(client)
+                .build();
+        when(paymentRepository.findById(100L)).thenReturn(Optional.of(inReview));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Payment released = paymentService.releasePayment(100L, null, 1L);
+
+        assertThat(released.getStatus()).isEqualTo(Payment.PaymentStatus.RELEASED);
+        assertThat(job.getStatus()).isEqualTo(Job.JobStatus.COMPLETED);
+    }
+
+    @Test
+    void toAtomicStringConvertsUsdcDecimal() {
+        assertThat(PaymentService.toAtomicString(new BigDecimal("1"), 6))
+                .isEqualTo("1000000");
+        assertThat(PaymentService.toAtomicString(new BigDecimal("1.5"), 6))
+                .isEqualTo("1500000");
+        assertThat(PaymentService.toWeiString(new BigDecimal("1500")))
+                .isEqualTo("1500000000");
     }
 }

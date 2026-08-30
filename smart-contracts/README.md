@@ -1,6 +1,19 @@
 # Smart Contracts (Foundry)
 
-Native-ETH escrow for Decent Work: `FreelanceEscrow`.
+ERC-20 escrow for Decent Work: `FreelanceEscrow` + Anvil `MockUSDC`.
+
+**MVP payment token:** USDC (6 decimals).  
+**USDT:** contract allowlist is ready (`setAllowedToken`); the app is USDC-only until the next phase.
+
+## Networks
+
+| Env | Chain | Chain ID | USDC |
+|-----|--------|----------|------|
+| Local | Anvil | 31337 | `MockUSDC` (deployed with escrow, 1M minted to Anvil #0–2) |
+| Dev | Base Sepolia | 84532 | Circle `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| Prod | Base | 8453 | Circle `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+
+Gas is still ETH (or Anvil ETH). USDC is what clients lock and freelancers receive.
 
 ## Prerequisites
 
@@ -9,58 +22,63 @@ Native-ETH escrow for Decent Work: `FreelanceEscrow`.
 ## Commands
 
 ```bash
-# Install deps (if needed)
 forge install
-
-# Build
 forge build
-
-# Test
 forge test -vv
 
 # Local chain
 anvil
 
-# Deploy to Anvil (default Anvil account #0)
+# Deploy to Anvil (default account #0)
 forge script script/Deploy.s.sol:Deploy \
   --rpc-url http://127.0.0.1:8545 \
   --broadcast \
   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
-# Sepolia
+# Base Sepolia
 forge script script/Deploy.s.sol:Deploy \
-  --rpc-url $SEPOLIA_RPC_URL \
+  --rpc-url $BASE_SEPOLIA_RPC_URL \
+  --broadcast \
+  --private-key $PRIVATE_KEY
+
+# Base mainnet
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url $BASE_RPC_URL \
   --broadcast \
   --private-key $PRIVATE_KEY
 ```
 
-Optional: `PLATFORM_WALLET=0x...` for the fee recipient (defaults to deployer).
+Optional: `PLATFORM_WALLET=0x...` for the fee recipient (defaults to deployer).  
+Optional: `USDC_ADDRESS=0x...` to override Circle defaults on Base / Base Sepolia.
 
 ## Wire into the app
 
-After deploy, set:
+After deploy, set the **escrow** and **token** addresses (Anvil prints both):
 
-**Backend** (`application.yml` or env):
+**Backend:**
 
 ```bash
-export ESCROW_CONTRACT_ADDRESS=0x...   # from forge script output
-export WEB3_PROVIDER_URL=http://127.0.0.1:8545
-export WEB3_CHAIN_ID=31337
+export ESCROW_CONTRACT_ADDRESS=0x...
+export WEB3_TOKEN_ADDRESS=0x...
+export WEB3_PROVIDER_URL=http://127.0.0.1:8545   # or Base RPC
+export WEB3_CHAIN_ID=31337                       # 84532 Base Sepolia, 8453 Base
+export WEB3_TOKEN_SYMBOL=USDC
+export WEB3_TOKEN_DECIMALS=6
 ```
 
-**Frontend** (`.env` / `.env.local`):
+**Frontend** (`frontend/.env.local`):
 
 ```bash
+VITE_CHAIN_KEY=anvil          # or base-sepolia | base
 VITE_ESCROW_ADDRESS=0x...
-VITE_CHAIN_ID=31337
-VITE_CHAIN_NAME=Anvil
-VITE_RPC_URL=http://127.0.0.1:8545
+VITE_TOKEN_ADDRESS=0x...      # MockUSDC on Anvil; Circle USDC on Base
 ```
 
-Export ABI after contract changes:
+Preset RPCs/chain IDs come from `VITE_CHAIN_KEY`. Override with `VITE_CHAIN_ID` / `VITE_RPC_URL` if needed. Restart Vite after env changes.
+
+Export ABI after contract changes (from repo root):
 
 ```bash
-# from repo root
 python3 -c "
 import json
 with open('smart-contracts/out/FreelanceEscrow.sol/FreelanceEscrow.json') as f:
@@ -74,9 +92,10 @@ with open('frontend/src/contracts/FreelanceEscrow.json', 'w') as f:
 
 | Function | Who | Effect |
 |----------|-----|--------|
-| `createEscrow(jobId, freelancer) payable` | Client | Fund escrow |
-| `releasePayment(escrowId)` | Client | Pay freelancer − 5% fee |
+| `createEscrow(jobId, freelancer, token, amount)` | Client (after `token.approve`) | Pull USDC into escrow |
+| `releasePayment(escrowId)` | Client | Pay freelancer − 5% fee in the same token |
 | `refundPayment(escrowId)` | Freelancer or owner | Full refund to client |
+| `setAllowedToken(token, allowed)` | Owner | Enable USDT (or another ERC-20) later |
 | `raiseDispute` / `resolveDispute` | Parties / owner | Dispute flow |
 
 Fee default: **5%** to `platformWallet` (owner can update ≤ 10%).

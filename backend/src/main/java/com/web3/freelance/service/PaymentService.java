@@ -18,13 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
 
-    private static final BigDecimal WEI_PER_ETH = new BigDecimal("1000000000000000000");
+    private static final int MAX_WORK_MESSAGE_LENGTH = 2000;
 
     private final PaymentRepository paymentRepository;
     private final BidService bidService;
@@ -40,6 +41,9 @@ public class PaymentService {
 
     @Value("${web3.chain-id:31337}")
     private long chainId;
+
+    @Value("${web3.token-decimals:6}")
+    private int tokenDecimals;
 
     /**
      * Freelancer accepts an outstanding offer. Rejects competing pending bids,
@@ -177,7 +181,7 @@ public class PaymentService {
             }
         });
 
-        String expectedWei = toWeiString(payment.getAmount());
+        String expectedWei = toAtomicString(payment.getAmount(), tokenDecimals);
 
         EscrowVerificationService.FundVerification verified = escrowVerificationService.verifyFunding(
                 transactionHash,
@@ -219,18 +223,9 @@ public class PaymentService {
             return payment;
         }
 
-        if (payment.getStatus() != Payment.PaymentStatus.ESCROWED) {
-            throw new ValidationException(
-                    ErrorCode.BUSINESS_LOGIC_ERROR,
-                    "Only escrowed funds can be released");
-        }
-
+        requireReleasable(payment);
         Job job = payment.getJob();
-        if (job.getStatus() != Job.JobStatus.IN_PROGRESS) {
-            throw new ValidationException(
-                    ErrorCode.INVALID_JOB_STATUS,
-                    "Only an in-progress job can be completed");
-        }
+        requireJobInProgress(job);
 
         if (payment.getOnChainEscrowId() == null || payment.getOnChainEscrowId().isBlank()) {
             throw new ValidationException(
@@ -270,18 +265,9 @@ public class PaymentService {
             return confirmPaymentRelease(paymentId, transactionHash, clientId);
         }
 
-        if (payment.getStatus() != Payment.PaymentStatus.ESCROWED) {
-            throw new ValidationException(
-                    ErrorCode.BUSINESS_LOGIC_ERROR,
-                    "Only escrowed funds can be released");
-        }
-
+        requireReleasable(payment);
         Job job = payment.getJob();
-        if (job.getStatus() != Job.JobStatus.IN_PROGRESS) {
-            throw new ValidationException(
-                    ErrorCode.INVALID_JOB_STATUS,
-                    "Only an in-progress job can be completed");
-        }
+        requireJobInProgress(job);
 
         payment.setTransactionHash(transactionHash);
         payment.setReleaseTransactionHash(transactionHash);
@@ -291,15 +277,116 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
-    public Payment getPaymentForJob(Long jobId, Long clientId) {
-        Job job = jobService.getJobById(jobId);
+    /**
+     * Hired freelancer marks the contract as ready for client review.
+     * Payment stays funded; job stays in progress until the client releases.
+     */
+    @Transactional
+    public Payment submitWork(Long jobId, String message, Long freelancerId) {
+        Payment payment = requirePaymentForJob(jobId);
 
-        if (!job.getClient().getId().equals(clientId)) {
+        if (!payment.getFreelancer().getId().equals(freelancerId)) {
             throw new UnauthorizedException(
                     ErrorCode.INSUFFICIENT_PERMISSIONS,
-                    "Only the job owner can view this payment");
+                    "Only the hired freelancer can submit work for this job");
         }
 
+        requireJobInProgress(payment.getJob());
+
+        if (payment.getStatus() == Payment.PaymentStatus.IN_REVIEW) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "Work is already submitted and awaiting client review");
+        }
+
+        if (payment.getStatus() != Payment.PaymentStatus.ESCROWED) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "Work can only be submitted after funds are in escrow");
+        }
+
+        payment.setStatus(Payment.PaymentStatus.IN_REVIEW);
+        payment.setWorkSubmittedAt(LocalDateTime.now());
+        payment.setWorkSubmissionMessage(normalizeOptionalMessage(message));
+        payment.setChangesRequestedAt(null);
+        payment.setChangesRequestedMessage(null);
+
+        Payment saved = paymentRepository.save(payment);
+
+        Job job = payment.getJob();
+        String jobTitle = job.getTitle() != null ? job.getTitle() : "your job";
+        String freelancerName = payment.getFreelancer().getUsername();
+        notificationService.create(
+                payment.getClient(),
+                Notification.NotificationType.WORK_SUBMITTED,
+                "Work submitted",
+                freelancerName + " submitted work on \"" + jobTitle + "\". Review it and approve & release, or request changes.",
+                "/jobs/" + job.getId() + "/proposals",
+                job.getId(),
+                null
+        );
+
+        return saved;
+    }
+
+    /**
+     * Client sends submitted work back to the freelancer. Funds stay in escrow.
+     */
+    @Transactional
+    public Payment requestChanges(Long jobId, String message, Long clientId) {
+        Payment payment = requirePaymentForJob(jobId);
+
+        if (!payment.getClient().getId().equals(clientId)) {
+            throw new UnauthorizedException(
+                    ErrorCode.INSUFFICIENT_PERMISSIONS,
+                    "Only the hiring client can request changes");
+        }
+
+        requireJobInProgress(payment.getJob());
+
+        if (payment.getStatus() != Payment.PaymentStatus.IN_REVIEW) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "Changes can only be requested after the freelancer submits work");
+        }
+
+        payment.setStatus(Payment.PaymentStatus.ESCROWED);
+        payment.setChangesRequestedAt(LocalDateTime.now());
+        payment.setChangesRequestedMessage(normalizeOptionalMessage(message));
+
+        Payment saved = paymentRepository.save(payment);
+
+        Job job = payment.getJob();
+        String jobTitle = job.getTitle() != null ? job.getTitle() : "the job";
+        notificationService.create(
+                payment.getFreelancer(),
+                Notification.NotificationType.CHANGES_REQUESTED,
+                "Changes requested",
+                "The client requested changes on \"" + jobTitle + "\". Update your work and submit again.",
+                "/my-bids",
+                job.getId(),
+                null
+        );
+
+        return saved;
+    }
+
+    public Payment getPaymentForJob(Long jobId, Long userId) {
+        Job job = jobService.getJobById(jobId);
+        boolean isClient = job.getClient().getId().equals(userId);
+        Payment payment = paymentRepository.findByJobId(jobId).orElse(null);
+        boolean isHiredFreelancer = payment != null && payment.getFreelancer().getId().equals(userId);
+
+        if (!isClient && !isHiredFreelancer) {
+            throw new UnauthorizedException(
+                    ErrorCode.INSUFFICIENT_PERMISSIONS,
+                    "Only the job owner or hired freelancer can view this payment");
+        }
+
+        return payment;
+    }
+
+    public Payment findByJobId(Long jobId) {
         return paymentRepository.findByJobId(jobId).orElse(null);
     }
 
@@ -324,17 +411,66 @@ public class PaymentService {
         return payment;
     }
 
+    private Payment requirePaymentForJob(Long jobId) {
+        return paymentRepository.findByJobId(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.PAYMENT_NOT_FOUND,
+                        "No payment found for job " + jobId));
+    }
+
+    private static void requireReleasable(Payment payment) {
+        if (payment.getStatus() != Payment.PaymentStatus.ESCROWED
+                && payment.getStatus() != Payment.PaymentStatus.IN_REVIEW) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "Only escrowed or in-review payments can be released");
+        }
+    }
+
+    private static void requireJobInProgress(Job job) {
+        if (job.getStatus() != Job.JobStatus.IN_PROGRESS) {
+            throw new ValidationException(
+                    ErrorCode.INVALID_JOB_STATUS,
+                    "This action requires an in-progress job");
+        }
+    }
+
+    private static String normalizeOptionalMessage(String message) {
+        if (message == null) {
+            return null;
+        }
+        String trimmed = message.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        if (trimmed.length() > MAX_WORK_MESSAGE_LENGTH) {
+            throw new ValidationException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Message must be " + MAX_WORK_MESSAGE_LENGTH + " characters or fewer");
+        }
+        return trimmed;
+    }
+
     /**
-     * Convert ETH decimal amount to wei string (no scientific notation).
+     * Convert a human token amount (e.g. 1500 USDC) to integer atomic units (6 decimals for USDC).
      */
-    static String toWeiString(BigDecimal ethAmount) {
-        if (ethAmount == null || ethAmount.compareTo(BigDecimal.ZERO) <= 0) {
+    static String toAtomicString(BigDecimal amount, int decimals) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ValidationException(ErrorCode.VALIDATION_ERROR, "Amount must be positive");
         }
-        BigInteger wei = ethAmount
-                .multiply(WEI_PER_ETH)
+        if (decimals < 0 || decimals > 18) {
+            throw new ValidationException(ErrorCode.VALIDATION_ERROR, "Unsupported token decimals");
+        }
+        BigDecimal factor = BigDecimal.TEN.pow(decimals);
+        BigInteger atomic = amount
+                .multiply(factor)
                 .setScale(0, RoundingMode.HALF_UP)
                 .toBigIntegerExact();
-        return wei.toString();
+        return atomic.toString();
+    }
+
+    /** @deprecated USDC uses {@link #toAtomicString(BigDecimal, int)}; kept for older tests. */
+    static String toWeiString(BigDecimal amount) {
+        return toAtomicString(amount, 6);
     }
 }

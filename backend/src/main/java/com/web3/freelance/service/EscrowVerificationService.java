@@ -32,12 +32,13 @@ import java.util.Locale;
 @Slf4j
 public class EscrowVerificationService {
 
-    // EscrowCreated(uint256 indexed escrowId, uint256 indexed jobId, address client, address freelancer, uint256 amount)
+    // EscrowCreated(uint256 indexed escrowId, uint256 indexed jobId, address client, address freelancer, address token, uint256 amount)
     private static final Event ESCROW_CREATED = new Event(
             "EscrowCreated",
             Arrays.asList(
                     new TypeReference<Uint256>(true) {},
                     new TypeReference<Uint256>(true) {},
+                    new TypeReference<Address>(false) {},
                     new TypeReference<Address>(false) {},
                     new TypeReference<Address>(false) {},
                     new TypeReference<Uint256>(false) {}
@@ -65,6 +66,9 @@ public class EscrowVerificationService {
 
     @Value("${web3.chain-id:31337}")
     private long configuredChainId;
+
+    @Value("${web3.token-address:}")
+    private String paymentTokenAddress;
 
     public record FundVerification(
             String escrowId,
@@ -110,13 +114,21 @@ public class EscrowVerificationService {
                     logEntry.getData(),
                     ESCROW_CREATED.getNonIndexedParameters()
             );
-            if (nonIndexed.size() < 3) {
+            if (nonIndexed.size() < 4) {
                 continue;
             }
 
             String client = ((Address) nonIndexed.get(0)).getValue();
             String freelancer = ((Address) nonIndexed.get(1)).getValue();
-            BigInteger amount = (BigInteger) nonIndexed.get(2).getValue();
+            String token = ((Address) nonIndexed.get(2)).getValue();
+            BigInteger amount = (BigInteger) nonIndexed.get(3).getValue();
+
+            if (paymentTokenAddress != null && !paymentTokenAddress.isBlank()
+                    && !addressesEqual(token, paymentTokenAddress)) {
+                throw new ValidationException(
+                        ErrorCode.INVALID_TRANSACTION,
+                        "Funded token does not match the configured payment token");
+            }
 
             if (jobId.longValue() != expectedJobId) {
                 throw new ValidationException(
@@ -137,7 +149,7 @@ public class EscrowVerificationService {
                 throw new ValidationException(
                         ErrorCode.INVALID_TRANSACTION,
                         "Funded amount does not match the bid amount (expected "
-                                + expectedAmountWei + " wei, got " + amount + ")");
+                                + expectedAmountWei + " atomic units, got " + amount + ")");
             }
 
             return new FundVerification(

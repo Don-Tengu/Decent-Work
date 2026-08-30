@@ -1,18 +1,24 @@
-import { BrowserProvider, Contract, Interface, parseEther, formatEther } from 'ethers';
+import { BrowserProvider, Contract, Interface, parseUnits, formatUnits } from 'ethers';
 import escrowArtifact from '@/contracts/FreelanceEscrow.json';
+import erc20Artifact from '@/contracts/erc20.json';
 import { WEB3_CONFIG, isEscrowConfigured } from '@/config/web3.js';
-
-const ESCROW_CREATED = 'EscrowCreated(uint256,uint256,address,address,uint256)';
 
 const getEscrowInterface = () => new Interface(escrowArtifact.abi);
 
 export const getEscrowContract = (signerOrProvider) => {
   if (!isEscrowConfigured()) {
     throw new Error(
-      'Escrow contract address is not configured. Set VITE_ESCROW_ADDRESS after forge deploy.'
+      'Escrow is not configured. Set VITE_ESCROW_ADDRESS and VITE_TOKEN_ADDRESS after forge deploy.'
     );
   }
   return new Contract(WEB3_CONFIG.escrowAddress, escrowArtifact.abi, signerOrProvider);
+};
+
+export const getPaymentToken = (signerOrProvider) => {
+  if (!WEB3_CONFIG.tokenAddress) {
+    throw new Error('Payment token address is not configured (VITE_TOKEN_ADDRESS).');
+  }
+  return new Contract(WEB3_CONFIG.tokenAddress, erc20Artifact.abi, signerOrProvider);
 };
 
 export const ensureCorrectChain = async (provider) => {
@@ -26,14 +32,13 @@ export const ensureCorrectChain = async (provider) => {
   try {
     await provider.send('wallet_switchEthereumChain', [{ chainId: chainIdHex }]);
   } catch (err) {
-    // 4902 = chain not added to MetaMask
     if (err?.code === 4902 || err?.error?.code === 4902) {
       await provider.send('wallet_addEthereumChain', [
         {
           chainId: chainIdHex,
           chainName: WEB3_CONFIG.chainName,
           rpcUrls: [WEB3_CONFIG.rpcUrl],
-          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+          nativeCurrency: WEB3_CONFIG.nativeCurrency,
           blockExplorerUrls: WEB3_CONFIG.blockExplorerUrl
             ? [WEB3_CONFIG.blockExplorerUrl]
             : undefined,
@@ -58,16 +63,26 @@ export const getBrowserSigner = async () => {
   return { provider, signer, address: await signer.getAddress() };
 };
 
-/**
- * Fund escrow via createEscrow(jobId, freelancer) payable.
- * @returns {{ txHash: string, escrowId: string|null }}
- */
-export const fundEscrow = async ({ jobId, freelancerAddress, amountEth }) => {
-  const { signer } = await getBrowserSigner();
-  const contract = getEscrowContract(signer);
-  const value = parseEther(String(amountEth));
+const toAtomic = (amount) => parseUnits(String(amount), WEB3_CONFIG.tokenDecimals);
 
-  const tx = await contract.createEscrow(BigInt(jobId), freelancerAddress, { value });
+/**
+ * Approve USDC then createEscrow(jobId, freelancer, token, amount).
+ */
+export const fundEscrow = async ({ jobId, freelancerAddress, amount }) => {
+  const { signer } = await getBrowserSigner();
+  const escrow = getEscrowContract(signer);
+  const token = getPaymentToken(signer);
+  const atomic = toAtomic(amount);
+
+  const approveTx = await token.approve(WEB3_CONFIG.escrowAddress, atomic);
+  await approveTx.wait();
+
+  const tx = await escrow.createEscrow(
+    BigInt(jobId),
+    freelancerAddress,
+    WEB3_CONFIG.tokenAddress,
+    atomic
+  );
   const receipt = await tx.wait();
 
   let escrowId = null;
@@ -91,9 +106,6 @@ export const fundEscrow = async ({ jobId, freelancerAddress, amountEth }) => {
   return { txHash: receipt.hash || tx.hash, escrowId };
 };
 
-/**
- * Release escrow funds to freelancer (client only).
- */
 export const releaseEscrow = async ({ escrowId }) => {
   const { signer } = await getBrowserSigner();
   const contract = getEscrowContract(signer);
@@ -102,29 +114,12 @@ export const releaseEscrow = async ({ escrowId }) => {
   return { txHash: receipt.hash || tx.hash };
 };
 
-export const netAfterFee = (amountEth, feePercent = WEB3_CONFIG.platformFeePercent) => {
-  const gross = Number(amountEth);
+export const netAfterFee = (amount, feePercent = WEB3_CONFIG.platformFeePercent) => {
+  const gross = Number(amount);
   if (Number.isNaN(gross)) {
     return null;
   }
-  const net = gross * (1 - feePercent / 100);
-  return net;
+  return gross * (1 - feePercent / 100);
 };
 
-export const formatEthAmount = (amount) => {
-  if (amount == null) {
-    return '';
-  }
-  try {
-    // if already eth decimal string/number
-    const n = Number(amount);
-    if (!Number.isNaN(n)) {
-      return `${n} ETH`;
-    }
-  } catch {
-    /* fall through */
-  }
-  return `${amount} ETH`;
-};
-
-export { formatEther, parseEther, ESCROW_CREATED };
+export { formatUnits, parseUnits };

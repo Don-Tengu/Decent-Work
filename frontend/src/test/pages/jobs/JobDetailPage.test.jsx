@@ -76,6 +76,7 @@ const submittedBid = {
   status: 'PENDING',
   createdAt: '2026-05-10T00:00:00',
   attachments: [],
+  payment: null,
 };
 
 const jobMock = (job = baseJob) => ({
@@ -165,6 +166,34 @@ describe('JobDetailPage proposal flow', () => {
 
     expect(await screen.findByRole('button', { name: /freelancers only/i })).toBeDisabled();
     expect(screen.queryByRole('link', { name: /submit proposal/i })).not.toBeInTheDocument();
+  });
+
+  it('shows submit work when the hired freelancer has funds in escrow', async () => {
+    const hiredJob = {
+      ...baseJob,
+      status: 'IN_PROGRESS',
+    };
+    const hiredBid = {
+      ...submittedBid,
+      status: 'ACCEPTED',
+      payment: {
+        __typename: 'Payment',
+        id: 'payment-1',
+        status: 'ESCROWED',
+        amount: 1200,
+        fundingMode: 'SIMULATED',
+        workSubmittedAt: null,
+        workSubmissionMessage: null,
+        changesRequestedAt: null,
+        changesRequestedMessage: null,
+      },
+    };
+
+    renderJobDetail([jobMock(hiredJob), savedJobIdsMock, myBidForJobMock(hiredBid)]);
+
+    expect(await screen.findByRole('button', { name: /submit work/i })).toBeInTheDocument();
+    expect(screen.getByText(/ready to review/i)).toBeInTheDocument();
+    expect(screen.queryByText(/proposal actions should stay disabled/i)).not.toBeInTheDocument();
   });
 
   it('does not show an active submit action for non-open jobs', async () => {

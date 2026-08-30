@@ -2,12 +2,14 @@ package com.web3.freelance.service;
 
 import com.web3.freelance.exception.ErrorCode;
 import com.web3.freelance.exception.ResourceNotFoundException;
+import com.web3.freelance.exception.ValidationException;
 import com.web3.freelance.model.Job;
 import com.web3.freelance.model.JobSkill;
 import com.web3.freelance.model.Skill;
 import com.web3.freelance.model.SkillTaxonomyNode;
 import com.web3.freelance.model.User;
 import com.web3.freelance.repository.JobRepository;
+import com.web3.freelance.repository.SavedJobRepository;
 import com.web3.freelance.repository.SkillRepository;
 import com.web3.freelance.repository.SkillTaxonomyNodeRepository;
 import jakarta.persistence.criteria.Join;
@@ -43,6 +45,8 @@ public class JobService {
     private final SkillRepository skillRepository;
     private final SkillTaxonomyNodeRepository skillTaxonomyNodeRepository;
     private final UserService userService;
+    private final JobAttachmentService jobAttachmentService;
+    private final SavedJobRepository savedJobRepository;
 
     public Job getJobById(Long id) {
         return jobRepository.findById(id)
@@ -146,8 +150,7 @@ public class JobService {
         job.setHourlyRateMin(normalizeMoney(request.hourlyRateMin()));
         job.setHourlyRateMax(normalizeMoney(request.hourlyRateMax()));
         job.setFixedBudget(normalizeMoney(request.fixedBudget()));
-        job.setCurrencyCode(normalizeCurrency(request.currencyCode()));
-        job.setPaymentModel(request.paymentModel() != null ? request.paymentModel() : Job.PaymentModel.OFF_CHAIN_NEGOTIATED);
+        applyPostingPayment(job, request.paymentModel(), request.currencyCode());
         job.setDraftStep(null);
         job.setStatus(Job.JobStatus.OPEN);
         job.setClient(client);
@@ -227,11 +230,12 @@ public class JobService {
         if (request.fixedBudget() != null || request.clearFixedBudget()) {
             job.setFixedBudget(request.clearFixedBudget() ? null : normalizeMoney(request.fixedBudget()));
         }
-        if (request.currencyCode() != null) {
-            job.setCurrencyCode(normalizeCurrency(request.currencyCode()));
-        }
-        if (request.paymentModel() != null) {
-            job.setPaymentModel(request.paymentModel());
+        if (request.currencyCode() != null || request.paymentModel() != null) {
+            applyPostingPayment(
+                    job,
+                    request.paymentModel() != null ? request.paymentModel() : job.getPaymentModel(),
+                    request.currencyCode() != null ? request.currencyCode() : job.getCurrencyCode()
+            );
         }
         if (request.skillIds() != null || request.customSkillNames() != null) {
             replaceJobSkills(job, buildJobSkills(job, request.skillIds(), request.customSkillNames(), true));
@@ -264,10 +268,19 @@ public class JobService {
 
     @Transactional
     public Job cancelJob(Long jobId, Long clientId) {
-        Job job = getJobById(jobId);
+        Job job = getOwnedJob(jobId, clientId);
 
-        if (!job.getClient().getId().equals(clientId)) {
-            throw new RuntimeException("Only job owner can cancel the job");
+        if (job.getStatus() == Job.JobStatus.DRAFT) {
+            savedJobRepository.deleteByJob(job);
+            job.replaceSkills(List.of());
+            job.getAttachments().clear();
+            jobRepository.delete(job);
+            jobAttachmentService.deleteStoredFilesForJob(jobId);
+            return job;
+        }
+
+        if (job.getStatus() != Job.JobStatus.OPEN) {
+            throw ValidationException.invalidInput("Only draft or open jobs can be removed");
         }
 
         job.setStatus(Job.JobStatus.CANCELLED);
@@ -305,16 +318,10 @@ public class JobService {
         return Job.builder()
                 .title("")
                 .description("")
-                .scopeSize(Job.JobScopeSize.MEDIUM)
-                .scopeDuration(Job.JobDuration.ONE_TO_THREE_MONTHS)
-                .scopeDurationAmount(1)
-                .scopeDurationUnit(Job.ScopeDurationUnit.MONTH)
-                .scopeDurationDays(30)
-                .experienceLevel(Job.ExperienceLevel.INTERMEDIATE)
                 .contractToHire(false)
                 .budgetType(Job.BudgetType.HOURLY)
-                .currencyCode("USD")
-                .paymentModel(Job.PaymentModel.OFF_CHAIN_NEGOTIATED)
+                .currencyCode("USDC")
+                .paymentModel(Job.PaymentModel.ON_CHAIN_ESCROW)
                 .draftStep(Job.DraftStep.SKILLS)
                 .status(Job.JobStatus.DRAFT)
                 .client(client)
@@ -444,9 +451,6 @@ public class JobService {
         if (request.scopeSize() != null) {
             job.setScopeSize(request.scopeSize());
         }
-        if (request.draftStep() != null) {
-            job.setDraftStep(request.draftStep());
-        }
         if (request.scopeDurationAmount() != null) {
             validateDraftDurationAmount(request.scopeDurationAmount());
             job.setScopeDurationAmount(request.scopeDurationAmount());
@@ -454,15 +458,22 @@ public class JobService {
         if (request.scopeDurationUnit() != null) {
             job.setScopeDurationUnit(request.scopeDurationUnit());
         }
-        int scopeDurationDays = validateScopeAndGetDays(
-                job.getScopeSize(),
-                job.getScopeDurationAmount(),
-                job.getScopeDurationUnit()
-        );
-        job.setScopeDurationDays(scopeDurationDays);
-        job.setScopeDuration(toLegacyDuration(scopeDurationDays));
+        if (job.getScopeSize() != null
+                && job.getScopeDurationAmount() != null
+                && job.getScopeDurationUnit() != null) {
+            int scopeDurationDays = validateScopeAndGetDays(
+                    job.getScopeSize(),
+                    job.getScopeDurationAmount(),
+                    job.getScopeDurationUnit()
+            );
+            job.setScopeDurationDays(scopeDurationDays);
+            job.setScopeDuration(toLegacyDuration(scopeDurationDays));
+        }
         if (request.experienceLevel() != null) {
             job.setExperienceLevel(request.experienceLevel());
+        }
+        if (request.draftStep() != null) {
+            job.setDraftStep(clampDraftStep(job, request.draftStep()));
         }
         if (request.contractToHire() != null) {
             job.setContractToHire(request.contractToHire());
@@ -479,12 +490,15 @@ public class JobService {
         if (request.fixedBudget() != null || request.clearFixedBudget()) {
             job.setFixedBudget(request.clearFixedBudget() ? null : normalizeMoney(request.fixedBudget()));
         }
-        if (request.currencyCode() != null) {
-            job.setCurrencyCode(normalizeCurrency(request.currencyCode()));
+        if (request.currencyCode() != null || request.paymentModel() != null) {
+            applyPostingPayment(
+                    job,
+                    request.paymentModel() != null ? request.paymentModel() : job.getPaymentModel(),
+                    request.currencyCode() != null ? request.currencyCode() : job.getCurrencyCode()
+            );
         }
-        if (request.paymentModel() != null) {
-            job.setPaymentModel(request.paymentModel());
-        }
+        // Drafts may omit amounts (wizard step 1 saves FIXED with a null budget).
+        // chk_jobs_budget_fields only requires a complete combination for non-draft rows.
         validateDraftBudget(job.getBudgetType(), job.getHourlyRateMin(), job.getHourlyRateMax(), job.getFixedBudget());
         if (request.skillFieldsProvided()) {
             replaceJobSkills(job, buildJobSkills(job, request.skillIds(), request.customSkillNames(), false));
@@ -692,6 +706,25 @@ public class JobService {
         }
     }
 
+    private boolean isDraftScopeComplete(Job job) {
+        return job.getScopeSize() != null
+                && job.getScopeDurationAmount() != null
+                && job.getScopeDurationUnit() != null
+                && job.getExperienceLevel() != null;
+    }
+
+    private Job.DraftStep clampDraftStep(Job job, Job.DraftStep requested) {
+        if (requested == Job.DraftStep.SKILLS || requested == Job.DraftStep.SCOPE) {
+            return requested;
+        }
+
+        if (!isDraftScopeComplete(job)) {
+            return Job.DraftStep.SCOPE;
+        }
+
+        return requested;
+    }
+
     private int validateScopeAndGetDays(
             Job.JobScopeSize scopeSize,
             Integer scopeDurationAmount,
@@ -805,9 +838,29 @@ public class JobService {
 
     private String normalizeCurrency(String currencyCode) {
         if (currencyCode == null || currencyCode.isBlank()) {
-            return "USD";
+            return "USDC";
         }
         return currencyCode.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private Job.PaymentModel postingPaymentModel(Job.PaymentModel requested) {
+        if (requested == null || requested == Job.PaymentModel.OFF_CHAIN_NEGOTIATED) {
+            return Job.PaymentModel.ON_CHAIN_ESCROW;
+        }
+        return requested;
+    }
+
+    private String postingCurrency(String currencyCode) {
+        String normalized = normalizeCurrency(currencyCode);
+        if ("USD".equals(normalized) || "ETH".equals(normalized)) {
+            return "USDC";
+        }
+        return normalized;
+    }
+
+    private void applyPostingPayment(Job job, Job.PaymentModel requestedModel, String requestedCurrency) {
+        job.setPaymentModel(postingPaymentModel(requestedModel));
+        job.setCurrencyCode(postingCurrency(requestedCurrency));
     }
 
     public record CreateJobRequest(

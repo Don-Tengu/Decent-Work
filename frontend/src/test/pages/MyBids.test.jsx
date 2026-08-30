@@ -66,6 +66,7 @@ const makeBid = (overrides = {}) => ({
     fixedBudget: 1500,
     currencyCode: 'USD',
   },
+  payment: null,
   ...overrides,
 });
 
@@ -101,11 +102,60 @@ describe('MyBids', () => {
             fixedBudget: 1500,
             currencyCode: 'USD',
           },
+          payment: {
+            __typename: 'Payment',
+            id: 'payment-1',
+            status: 'ESCROWED',
+            amount: 1200,
+            fundingMode: 'SIMULATED',
+            workSubmittedAt: null,
+            workSubmissionMessage: null,
+            changesRequestedAt: null,
+            changesRequestedMessage: null,
+          },
         }),
       ]),
     ]);
 
-    expect(await screen.findByText(/active contract · in progress/i)).toBeInTheDocument();
+    expect(await screen.findByText(/submit work when you are done/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /submit work/i })).toBeInTheDocument();
+  });
+
+  it('shows awaiting-review copy after work is submitted', async () => {
+    renderMyBids([
+      myBidsMock([
+        makeBid({
+          id: 'bid-2',
+          status: 'ACCEPTED',
+          job: {
+            __typename: 'Job',
+            id: 'job-2',
+            title: 'Smart Contract Audit',
+            status: 'IN_PROGRESS',
+            budgetType: 'FIXED',
+            hourlyRateMin: null,
+            hourlyRateMax: null,
+            fixedBudget: 1500,
+            currencyCode: 'USD',
+          },
+          payment: {
+            __typename: 'Payment',
+            id: 'payment-1',
+            status: 'IN_REVIEW',
+            amount: 1200,
+            fundingMode: 'SIMULATED',
+            workSubmittedAt: '2026-08-30T12:00:00',
+            workSubmissionMessage: 'PR is ready.',
+            changesRequestedAt: null,
+            changesRequestedMessage: null,
+          },
+        }),
+      ]),
+    ]);
+
+    expect(await screen.findByText(/waiting for the client to review/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /submit work/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/you submitted: pr is ready/i)).toBeInTheDocument();
   });
 
   it('shows accept and decline actions for an offered proposal', async () => {

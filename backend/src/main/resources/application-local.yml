@@ -35,6 +35,9 @@ web3:
   provider-url: ${WEB3_PROVIDER_URL:http://127.0.0.1:8545}
   escrow-contract-address: ${ESCROW_CONTRACT_ADDRESS:0x5FbDB2315678afecb367f032d93F642f64180aa3}
   chain-id: ${WEB3_CHAIN_ID:31337}
+  token-address: ${WEB3_TOKEN_ADDRESS:}
+  token-symbol: ${WEB3_TOKEN_SYMBOL:USDC}
+  token-decimals: ${WEB3_TOKEN_DECIMALS:6}
   platform-fee-percent: ${PLATFORM_FEE_PERCENT:5}
 
 app:

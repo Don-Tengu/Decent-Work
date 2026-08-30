@@ -26,6 +26,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
@@ -130,6 +131,31 @@ public class JobAttachmentService {
             Files.deleteIfExists(filePath);
         } catch (IOException exception) {
             throw ValidationException.invalidInput("Unable to delete the attachment");
+        }
+    }
+
+    public void deleteStoredFilesForJob(Long jobId) {
+        if (jobId == null) {
+            return;
+        }
+
+        Path jobDirectory = getStorageRoot().resolve(String.valueOf(jobId)).normalize();
+        ensurePathWithinStorageRoot(jobDirectory);
+
+        if (!Files.exists(jobDirectory)) {
+            return;
+        }
+
+        try (var paths = Files.walk(jobDirectory)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // Best-effort disk cleanup after the job row is already removed.
+                }
+            });
+        } catch (IOException ignored) {
+            // Best-effort disk cleanup after the job row is already removed.
         }
     }
 

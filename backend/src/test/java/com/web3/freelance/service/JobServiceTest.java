@@ -1,11 +1,13 @@
 package com.web3.freelance.service;
 
 import com.web3.freelance.model.Job;
+import com.web3.freelance.model.JobAttachment;
 import com.web3.freelance.model.JobSkill;
 import com.web3.freelance.model.Skill;
 import com.web3.freelance.model.SkillTaxonomyNode;
 import com.web3.freelance.model.User;
 import com.web3.freelance.repository.JobRepository;
+import com.web3.freelance.repository.SavedJobRepository;
 import com.web3.freelance.repository.SkillRepository;
 import com.web3.freelance.repository.SkillTaxonomyNodeRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +26,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +47,12 @@ class JobServiceTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private JobAttachmentService jobAttachmentService;
+
+    @Mock
+    private SavedJobRepository savedJobRepository;
+
     private JobService jobService;
     private User client;
     private SkillTaxonomyNode category;
@@ -50,7 +60,14 @@ class JobServiceTest {
 
     @BeforeEach
     void setUp() {
-        jobService = new JobService(jobRepository, skillRepository, skillTaxonomyNodeRepository, userService);
+        jobService = new JobService(
+                jobRepository,
+                skillRepository,
+                skillTaxonomyNodeRepository,
+                userService,
+                jobAttachmentService,
+                savedJobRepository
+        );
         client = User.builder()
                 .id(CLIENT_ID)
                 .email("client@example.com")
@@ -269,7 +286,85 @@ class JobServiceTest {
         assertThat(draft.getTitle()).isEmpty();
         assertThat(draft.getDescription()).isEmpty();
         assertThat(draft.getDraftStep()).isEqualTo(Job.DraftStep.SKILLS);
+        assertThat(draft.getScopeSize()).isNull();
+        assertThat(draft.getScopeDurationAmount()).isNull();
+        assertThat(draft.getExperienceLevel()).isNull();
         assertThat(draft.getClient()).isEqualTo(client);
+    }
+
+    @Test
+    void saveJobDraftAllowsFixedBudgetTypeWithoutAmount() {
+        when(userService.getUserById(CLIENT_ID)).thenReturn(client);
+        when(jobRepository.save(any(Job.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Job draft = jobService.saveJobDraft(null, CLIENT_ID, titleOnlyDraftRequest());
+
+        assertThat(draft.getStatus()).isEqualTo(Job.JobStatus.DRAFT);
+        assertThat(draft.getTitle()).isEqualTo("aaaa");
+        assertThat(draft.getDescription()).isEmpty();
+        assertThat(draft.getDraftStep()).isEqualTo(Job.DraftStep.SKILLS);
+        assertThat(draft.getBudgetType()).isEqualTo(Job.BudgetType.FIXED);
+        assertThat(draft.getPaymentModel()).isEqualTo(Job.PaymentModel.ON_CHAIN_ESCROW);
+        assertThat(draft.getCurrencyCode()).isEqualTo("USDC");
+        assertThat(draft.getFixedBudget()).isNull();
+        assertThat(draft.getHourlyRateMin()).isNull();
+        assertThat(draft.getHourlyRateMax()).isNull();
+        assertThat(draft.getScopeSize()).isNull();
+        assertThat(draft.getScopeDurationAmount()).isNull();
+        assertThat(draft.getScopeDurationUnit()).isNull();
+        assertThat(draft.getScopeDurationDays()).isNull();
+        assertThat(draft.getExperienceLevel()).isNull();
+        assertThat(draft.getPublishedAt()).isNull();
+    }
+
+    @Test
+    void saveJobDraftKeepsDraftStepAtScopeUntilScopeIsSpecified() {
+        Job existingDraft = existingJob();
+        existingDraft.setStatus(Job.JobStatus.DRAFT);
+        existingDraft.setDraftStep(Job.DraftStep.SCOPE);
+        existingDraft.setScopeSize(null);
+        existingDraft.setScopeDurationAmount(null);
+        existingDraft.setScopeDurationUnit(null);
+        existingDraft.setScopeDurationDays(null);
+        existingDraft.setScopeDuration(null);
+        existingDraft.setExperienceLevel(null);
+
+        when(userService.getUserById(CLIENT_ID)).thenReturn(client);
+        when(jobRepository.findById(99L)).thenReturn(Optional.of(existingDraft));
+        when(jobRepository.save(any(Job.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        JobService.SaveJobDraftRequest request = new JobService.SaveJobDraftRequest(
+                "aaaa",
+                "",
+                null,
+                null,
+                false,
+                false,
+                List.of(),
+                List.of(),
+                false,
+                Job.DraftStep.BUDGET,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                false,
+                null,
+                null
+        );
+
+        Job draft = jobService.saveJobDraft(99L, CLIENT_ID, request);
+
+        assertThat(draft.getDraftStep()).isEqualTo(Job.DraftStep.SCOPE);
+        assertThat(draft.getScopeSize()).isNull();
+        assertThat(draft.getExperienceLevel()).isNull();
     }
 
     @Test
@@ -333,6 +428,28 @@ class JobServiceTest {
     }
 
     @Test
+    void saveJobDraftClearsExistingSkillsWhenDraftHasNone() {
+        Job existingDraft = existingJob();
+        existingDraft.setStatus(Job.JobStatus.DRAFT);
+        existingDraft.replaceSkills(List.of(JobSkill.builder()
+                .id(501L)
+                .skill(skill(9L, "Old Skill", "old-skill"))
+                .displayOrder(1)
+                .build()));
+
+        when(userService.getUserById(CLIENT_ID)).thenReturn(client);
+        when(jobRepository.findById(99L)).thenReturn(Optional.of(existingDraft));
+        when(jobRepository.save(any(Job.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Job draft = jobService.saveJobDraft(99L, CLIENT_ID, emptyDraftRequest());
+
+        var jobRepositoryCalls = inOrder(jobRepository);
+        jobRepositoryCalls.verify(jobRepository).flush();
+        jobRepositoryCalls.verify(jobRepository).save(existingDraft);
+        assertThat(draft.getJobSkillTags()).isEmpty();
+    }
+
+    @Test
     void publishJobPublishesOwnedDraftAfterValidation() {
         Job existingDraft = existingJob();
         existingDraft.setStatus(Job.JobStatus.DRAFT);
@@ -356,16 +473,65 @@ class JobServiceTest {
     }
 
     @Test
-    void cancelJobSoftDeletesOwnedJob() {
+    void cancelJobDeletesOwnedDraft() {
         Job existingDraft = existingJob();
+        existingDraft.setStatus(Job.JobStatus.DRAFT);
+        existingDraft.replaceSkills(List.of(JobSkill.builder()
+                .id(501L)
+                .skill(skill(9L, "Old Skill", "old-skill"))
+                .displayOrder(1)
+                .build()));
+        existingDraft.getAttachments().add(JobAttachment.builder()
+                .id(7L)
+                .job(existingDraft)
+                .storageProvider(JobAttachment.StorageProvider.LOCAL)
+                .storageKey("99/spec.pdf")
+                .fileName("spec.pdf")
+                .fileSizeBytes(128L)
+                .uploadedByUser(client)
+                .build());
 
         when(jobRepository.findById(99L)).thenReturn(Optional.of(existingDraft));
+
+        Job deletedJob = jobService.cancelJob(99L, CLIENT_ID);
+
+        verify(savedJobRepository).deleteByJob(existingDraft);
+        verify(jobRepository).delete(existingDraft);
+        verify(jobAttachmentService).deleteStoredFilesForJob(99L);
+        verify(jobRepository, never()).save(any(Job.class));
+        assertThat(deletedJob.getId()).isEqualTo(99L);
+        assertThat(deletedJob.getStatus()).isEqualTo(Job.JobStatus.DRAFT);
+        assertThat(deletedJob.getJobSkillTags()).isEmpty();
+        assertThat(deletedJob.getAttachments()).isEmpty();
+    }
+
+    @Test
+    void cancelJobSoftDeletesOwnedOpenPosting() {
+        Job existingOpen = existingJob();
+        existingOpen.setStatus(Job.JobStatus.OPEN);
+
+        when(jobRepository.findById(99L)).thenReturn(Optional.of(existingOpen));
         when(jobRepository.save(any(Job.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Job cancelledJob = jobService.cancelJob(99L, CLIENT_ID);
 
         assertThat(cancelledJob.getStatus()).isEqualTo(Job.JobStatus.CANCELLED);
         assertThat(cancelledJob.getDraftStep()).isNull();
+        verify(jobRepository, never()).delete(any(Job.class));
+        verify(jobAttachmentService, never()).deleteStoredFilesForJob(any());
+    }
+
+    @Test
+    void cancelJobRejectsInProgressJob() {
+        Job inProgress = existingJob();
+        inProgress.setStatus(Job.JobStatus.IN_PROGRESS);
+
+        when(jobRepository.findById(99L)).thenReturn(Optional.of(inProgress));
+
+        assertThatThrownBy(() -> jobService.cancelJob(99L, CLIENT_ID))
+                .hasMessageContaining("Only draft or open jobs can be removed");
+        verify(jobRepository, never()).delete(any(Job.class));
+        verify(jobRepository, never()).save(any(Job.class));
     }
 
     @Test
@@ -406,8 +572,8 @@ class JobServiceTest {
                 BigDecimal.valueOf(25),
                 BigDecimal.valueOf(50),
                 null,
-                "USD",
-                Job.PaymentModel.OFF_CHAIN_NEGOTIATED
+                "USDC",
+                Job.PaymentModel.ON_CHAIN_ESCROW
         );
     }
 
@@ -460,6 +626,35 @@ class JobServiceTest {
                 .specialty(specialty)
                 .client(client)
                 .build();
+    }
+
+    private JobService.SaveJobDraftRequest titleOnlyDraftRequest() {
+        return new JobService.SaveJobDraftRequest(
+                "aaaa",
+                "",
+                null,
+                null,
+                true,
+                true,
+                List.of(),
+                List.of(),
+                true,
+                Job.DraftStep.SKILLS,
+                null,
+                null,
+                null,
+                null,
+                false,
+                Job.BudgetType.FIXED,
+                null,
+                null,
+                null,
+                true,
+                true,
+                true,
+                "USDC",
+                Job.PaymentModel.ON_CHAIN_ESCROW
+        );
     }
 
     private JobService.SaveJobDraftRequest emptyDraftRequest() {
@@ -515,7 +710,7 @@ class JobServiceTest {
                 true,
                 true,
                 false,
-                "USD",
+                "USDC",
                 Job.PaymentModel.ON_CHAIN_ESCROW
         );
     }

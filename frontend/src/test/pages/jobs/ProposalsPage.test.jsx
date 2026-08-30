@@ -118,6 +118,17 @@ const escrowedPayment = {
   platformFeePercent: 5,
   chainId: null,
   escrowAddress: '0x0',
+  workSubmittedAt: null,
+  workSubmissionMessage: null,
+  changesRequestedAt: null,
+  changesRequestedMessage: null,
+};
+
+const inReviewPayment = {
+  ...escrowedPayment,
+  status: 'IN_REVIEW',
+  workSubmittedAt: '2026-08-30T12:00:00',
+  workSubmissionMessage: 'Audit report is in the shared folder.',
 };
 
 const offerBidMock = () => ({
@@ -289,6 +300,19 @@ describe('ProposalsPage', () => {
     expect(await screen.findByRole('button', { name: /release payment/i })).toBeInTheDocument();
     expect(screen.getByText(/other proposals/i)).toBeInTheDocument();
     expect(screen.getByText('Not selected')).toBeInTheDocument();
+  });
+
+  it('shows approve and request-changes actions when work is in review', async () => {
+    renderProposals([
+      jobMock(makeJob({ status: 'IN_PROGRESS' })),
+      jobBidsMock([makeBid({ status: 'ACCEPTED' })]),
+      paymentMock(inReviewPayment),
+    ]);
+
+    expect(await screen.findByRole('button', { name: /approve & release/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /request changes/i })).toBeInTheDocument();
+    expect(screen.getByText(/work submitted for review/i)).toBeInTheDocument();
+    expect(screen.getByText(/audit report is in the shared folder/i)).toBeInTheDocument();
   });
 
   it('shows withdraw offer when a proposal is already offered', async () => {

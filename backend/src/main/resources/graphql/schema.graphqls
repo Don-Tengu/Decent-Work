@@ -27,11 +27,11 @@ type Job {
     description: String!
     status: JobStatus!
     draftStep: JobDraftStep
-    scopeSize: JobScopeSize!
-    scopeDurationAmount: Int!
-    scopeDurationUnit: ScopeDurationUnit!
-    scopeDurationDays: Int!
-    experienceLevel: ExperienceLevel!
+    scopeSize: JobScopeSize
+    scopeDurationAmount: Int
+    scopeDurationUnit: ScopeDurationUnit
+    scopeDurationDays: Int
+    experienceLevel: ExperienceLevel
     contractToHire: Boolean!
     budgetType: BudgetType!
     hourlyRateMin: Float
@@ -204,6 +204,8 @@ type Bid {
     status: BidStatus!
     freelancer: User!
     job: Job!
+    """Present when this proposal was hired (accepted bid)."""
+    payment: Payment
     attachments: [BidAttachment!]!
     createdAt: String!
 }
@@ -233,6 +235,8 @@ enum NotificationType {
     OFFER_DECLINED
     OFFER_WITHDRAWN
     BID_NOT_SELECTED
+    WORK_SUBMITTED
+    CHANGES_REQUESTED
 }
 
 type Payment {
@@ -254,11 +258,16 @@ type Payment {
     freelancer: User!
     client: User!
     createdAt: String!
+    workSubmittedAt: String
+    workSubmissionMessage: String
+    changesRequestedAt: String
+    changesRequestedMessage: String
 }
 
 enum PaymentStatus {
     AWAITING_FUNDING
     ESCROWED
+    IN_REVIEW
     RELEASED
     REFUNDED
 }
@@ -326,6 +335,7 @@ type Mutation {
     saveJobDraft(id: ID, input: SaveJobDraftInput!): Job!
     publishJob(id: ID, input: CreateJobInput!): Job!
     updateJob(id: ID!, input: UpdateJobInput!): Job!
+    """Remove a job you own. Unpublished drafts are deleted with their skill tags and attachments; open postings are cancelled."""
     cancelJob(id: ID!): Job!
     saveJob(id: ID!): Job!
     unsaveJob(id: ID!): Job!
@@ -350,8 +360,12 @@ type Mutation {
     confirmEscrowFunding(paymentId: ID!, transactionHash: String!): Payment!
     """Confirm on-chain releasePayment (ON_CHAIN payments)."""
     confirmPaymentRelease(paymentId: ID!, transactionHash: String!): Payment!
-    """Simulated release for OFF_CHAIN payments; on-chain requires transactionHash + verification."""
+    """Simulated release for OFF_CHAIN payments; on-chain requires transactionHash + verification. Allowed from ESCROWED or IN_REVIEW."""
     releasePayment(paymentId: ID!, transactionHash: String): Payment!
+    """Hired freelancer submits completed work for client review. Payment must be ESCROWED."""
+    submitWork(jobId: ID!, message: String): Payment!
+    """Client requests changes on submitted work. Payment must be IN_REVIEW; funds stay in escrow."""
+    requestChanges(jobId: ID!, message: String): Payment!
 }
 
 input RegisterInput {
@@ -386,8 +400,8 @@ input CreateJobInput {
     hourlyRateMin: Float
     hourlyRateMax: Float
     fixedBudget: Float
-    currencyCode: String = "USD"
-    paymentModel: PaymentModel = OFF_CHAIN_NEGOTIATED
+    currencyCode: String = "USDC"
+    paymentModel: PaymentModel = ON_CHAIN_ESCROW
 }
 
 input SaveJobDraftInput {

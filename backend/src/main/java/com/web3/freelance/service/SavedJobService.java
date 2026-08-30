@@ -49,7 +49,7 @@ public class SavedJobService {
     @Transactional
     public Job unsaveJob(Long freelancerId, Long jobId) {
         User freelancer = getFreelancer(freelancerId);
-        Job job = getOpenJob(jobId);
+        Job job = getJob(jobId);
         savedJobRepository.deleteByFreelancerAndJob(freelancer, job);
         return job;
     }
@@ -64,9 +64,13 @@ public class SavedJobService {
         return user;
     }
 
-    private Job getOpenJob(Long jobId) {
-        Job job = jobRepository.findById(jobId)
+    private Job getJob(Long jobId) {
+        return jobRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
+    }
+
+    private Job getOpenJob(Long jobId) {
+        Job job = getJob(jobId);
 
         if (job.getStatus() != Job.JobStatus.OPEN) {
             throw new RuntimeException("Only open jobs can be saved");

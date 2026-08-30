@@ -58,6 +58,7 @@ const FreelancerDrawer = ({
   onWithdrawOffer,
   onFund,
   onRelease,
+  onRequestChanges,
 }) => {
   const freelancer = bid?.freelancer;
   const name = getDisplayName(freelancer);
@@ -66,12 +67,13 @@ const FreelancerDrawer = ({
   const wallet = shortenAddress(freelancer?.walletAddress);
   const bio = freelancer?.profile?.bio?.trim();
   const amount = formatCurrency(bid?.amount, currencyCode);
-  const { canOffer, canWithdrawOffer, canFund, canRelease, paymentNote } = getPaymentActionFlags({
-    bid,
-    jobStatus,
-    payment,
-    hasOutstandingOffer,
-  });
+  const { canOffer, canWithdrawOffer, canFund, canRelease, canRequestChanges, releaseLabel, paymentNote } =
+    getPaymentActionFlags({
+      bid,
+      jobStatus,
+      payment,
+      hasOutstandingOffer,
+    });
 
   return (
     <Drawer.Root
@@ -217,7 +219,12 @@ const FreelancerDrawer = ({
                 ) : null}
                 {canRelease ? (
                   <Button type="button" onClick={() => onRelease?.(bid)} w="full" {...greenSolidButtonStyles}>
-                    Release payment
+                    {releaseLabel}
+                  </Button>
+                ) : null}
+                {canRequestChanges ? (
+                  <Button type="button" onClick={() => onRequestChanges?.(bid)} w="full" {...subtlePillButtonStyles}>
+                    Request changes
                   </Button>
                 ) : null}
                 {freelancer?.id ? (

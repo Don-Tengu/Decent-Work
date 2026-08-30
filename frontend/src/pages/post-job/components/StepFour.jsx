@@ -248,20 +248,6 @@ const NotReadyPrompt = ({
   );
 };
 
-const paymentModelOptions = [
-  {
-    value: 'OFF_CHAIN_NEGOTIATED',
-    label: 'Off-chain (simulated escrow)',
-    description: 'Hire and release in the app without a wallet transaction. Good for demos.',
-  },
-  {
-    value: 'ON_CHAIN_ESCROW',
-    label: 'On-chain ETH escrow',
-    description:
-      'Client funds FreelanceEscrow via MetaMask. Bid amounts are in ETH. 5% platform fee on release.',
-  },
-];
-
 const StepFour = ({
   draft,
   error,
@@ -269,14 +255,12 @@ const StepFour = ({
   onBudgetAmountChange,
   onBudgetAmountBlur,
   onContinueWithoutBudget,
-  onPaymentModelChange,
 }) => {
   const [showNotReadyPrompt, setShowNotReadyPrompt] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState(null);
   const notReadyButtonRef = useRef(null);
   const hasAmountError = !!error;
-  const currencyPrefix =
-    draft.paymentModel === 'ON_CHAIN_ESCROW' || draft.currencyCode === 'ETH' ? 'Ξ' : '$';
+  const currencyPrefix = '$';
 
   // MVP: coerce legacy hourly drafts to fixed price so the form stays consistent.
   useEffect(() => {
@@ -335,8 +319,8 @@ const StepFour = ({
       <VStack align="stretch" gap={5}>
         <Box>
           <Text color="rgba(226, 232, 240, 0.78)" lineHeight="1.7">
-            Set a price for the project and pay at the end. On-chain jobs use ETH escrow; off-chain
-            jobs use simulated escrow for demos.
+            Set a price for the project in USDC. After you hire, you fund on-chain escrow from MetaMask
+            and release when the work is approved.
           </Text>
         </Box>
 
@@ -362,49 +346,22 @@ const StepFour = ({
 
       {error ? <BudgetErrorMessage message={error} /> : null}
 
-      <Box>
+      <Box
+        border="1px solid"
+        borderColor="rgba(34, 211, 238, 0.35)"
+        bg="rgba(8, 47, 73, 0.35)"
+        borderRadius="16px"
+        px={5}
+        py={4}
+      >
         <Text color="white" fontWeight="semibold" mb={1}>
-          Payment protection
+          On-chain USDC escrow
         </Text>
-        <Text color="rgba(226, 232, 240, 0.66)" mb={4} lineHeight="1.6">
-          Choose how funds are held after you hire. On-chain escrow requires MetaMask and a
-          deployed contract (Foundry / Anvil).
+        <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.55">
+          After you hire, approve and deposit USDC into FreelanceEscrow (Anvil, Base Sepolia, or
+          Base). The freelancer can submit work, then you approve &amp; release (5% platform fee)
+          or request changes. You still need a little ETH in the wallet for gas.
         </Text>
-        <VStack align="stretch" gap={3} role="radiogroup" aria-label="Payment model">
-          {paymentModelOptions.map((option) => {
-            const selected = (draft.paymentModel || 'OFF_CHAIN_NEGOTIATED') === option.value;
-            return (
-              <Box
-                key={option.value}
-                as="button"
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => onPaymentModelChange?.(option.value)}
-                textAlign="left"
-                border="1px solid"
-                borderColor={selected ? 'rgba(34, 211, 238, 0.65)' : 'rgba(148, 163, 184, 0.22)'}
-                bg={selected ? 'rgba(8, 47, 73, 0.45)' : 'rgba(15, 23, 42, 0.42)'}
-                borderRadius="16px"
-                px={5}
-                py={4}
-                cursor="pointer"
-                transition="all 0.2s ease"
-                flexShrink={0}
-                _hover={{
-                  borderColor: selected ? 'rgba(34, 211, 238, 0.85)' : 'rgba(226, 232, 240, 0.36)',
-                }}
-              >
-                <Text color="white" fontWeight="semibold" mb={1}>
-                  {option.label}
-                </Text>
-                <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.55">
-                  {option.description}
-                </Text>
-              </Box>
-            );
-          })}
-        </VStack>
       </Box>
 
       <Box alignSelf="start" position="relative" display="inline-flex" pt={1} flexShrink={0}>

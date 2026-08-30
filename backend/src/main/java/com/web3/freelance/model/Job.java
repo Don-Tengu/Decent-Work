@@ -44,30 +44,26 @@ public class Job {
     private DraftStep draftStep;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(length = 16)
     private JobScopeSize scopeSize;
 
     @Deprecated
     @Enumerated(EnumType.STRING)
-    @Column(name = "scope_duration", nullable = false, length = 24)
-    @Builder.Default
-    private JobDuration scopeDuration = JobDuration.ONE_TO_THREE_MONTHS;
+    @Column(name = "scope_duration", length = 24)
+    private JobDuration scopeDuration;
 
-    @Column(nullable = false, columnDefinition = "integer default 1")
-    @Builder.Default
-    private Integer scopeDurationAmount = 1;
+    @Column(name = "scope_duration_amount")
+    private Integer scopeDurationAmount;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16, columnDefinition = "varchar(16) default 'MONTH'")
-    @Builder.Default
-    private ScopeDurationUnit scopeDurationUnit = ScopeDurationUnit.MONTH;
+    @Column(name = "scope_duration_unit", length = 16)
+    private ScopeDurationUnit scopeDurationUnit;
 
-    @Column(nullable = false, columnDefinition = "integer default 30")
-    @Builder.Default
-    private Integer scopeDurationDays = 30;
+    @Column(name = "scope_duration_days")
+    private Integer scopeDurationDays;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 24)
+    @Column(name = "experience_level", length = 24)
     private ExperienceLevel experienceLevel;
 
     @Column(nullable = false)
@@ -89,12 +85,12 @@ public class Job {
 
     @Column(nullable = false, length = 3)
     @Builder.Default
-    private String currencyCode = "USD";
+    private String currencyCode = "USDC";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     @Builder.Default
-    private PaymentModel paymentModel = PaymentModel.OFF_CHAIN_NEGOTIATED;
+    private PaymentModel paymentModel = PaymentModel.ON_CHAIN_ESCROW;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")

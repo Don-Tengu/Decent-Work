@@ -1,13 +1,14 @@
 import React from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { Link } from 'react-router-dom';
-import { Badge, Box, Button, HStack, Heading, SimpleGrid, Text, VStack } from '@chakra-ui/react';
+import { Badge, Box, Button, Field, HStack, Heading, SimpleGrid, Text, Textarea, VStack } from '@chakra-ui/react';
 import { ArrowLeft, BriefcaseBusiness, Clock3, SendHorizontal } from 'lucide-react';
 import {
   ACCEPT_OFFER,
   DECLINE_OFFER,
   GET_MY_BIDS,
   GET_MY_NOTIFICATIONS,
+  SUBMIT_WORK,
   UNREAD_NOTIFICATION_COUNT,
 } from '../graphql/queries';
 import GlassPanel from '../components/ui/GlassPanel.jsx';
@@ -20,6 +21,8 @@ import {
   quietPillButtonStyles,
   subtlePillButtonStyles,
 } from '../components/ui/buttonStyles.js';
+import { inputStyles } from './post-job/styles.js';
+import { getFreelancerWorkFlags } from './jobs/paymentActions.js';
 
 const pageAccents = [
   {
@@ -102,9 +105,10 @@ const getStatusLabel = (status) => {
 const graphqlErrorMessage = (err) =>
   err?.graphQLErrors?.[0]?.message || err?.message || 'Something went wrong';
 
-const MyBidCard = ({ bid, onAccept, onDecline }) => {
+const MyBidCard = ({ bid, onAccept, onDecline, onSubmitWork }) => {
   const isOffered = bid.status === 'OFFERED';
   const isAccepted = bid.status === 'ACCEPTED';
+  const { canSubmitWork, awaitingReview, changesRequested, contractCopy } = getFreelancerWorkFlags(bid);
 
   return (
     <GlassPanel
@@ -129,9 +133,30 @@ const MyBidCard = ({ bid, onAccept, onDecline }) => {
                 The client sent you an offer. Accept to start the contract, or decline to stay in the pool.
               </Text>
             ) : null}
-            {isAccepted && bid.job.status ? (
-              <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" fontWeight="medium" mt={1}>
-                {bid.job.status === 'COMPLETED' ? 'Completed · paid' : 'Active contract · in progress'}
+            {isAccepted && contractCopy ? (
+              <Text
+                color={
+                  changesRequested
+                    ? 'rgba(252, 211, 77, 0.95)'
+                    : awaitingReview
+                      ? 'rgba(125, 211, 252, 0.95)'
+                      : 'rgba(134, 239, 172, 0.9)'
+                }
+                fontSize="sm"
+                fontWeight="medium"
+                mt={1}
+              >
+                {contractCopy}
+              </Text>
+            ) : null}
+            {changesRequested && bid.payment?.changesRequestedMessage ? (
+              <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm" mt={2} whiteSpace="pre-line">
+                {bid.payment.changesRequestedMessage}
+              </Text>
+            ) : null}
+            {awaitingReview && bid.payment?.workSubmissionMessage ? (
+              <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm" mt={2} whiteSpace="pre-line">
+                You submitted: {bid.payment.workSubmissionMessage}
               </Text>
             ) : null}
           </Box>
@@ -202,6 +227,11 @@ const MyBidCard = ({ bid, onAccept, onDecline }) => {
               </Button>
             </>
           ) : null}
+          {canSubmitWork ? (
+            <Button type="button" onClick={() => onSubmitWork?.(bid)} px={5} {...greenSolidButtonStyles}>
+              Submit work
+            </Button>
+          ) : null}
           <Button as={Link} to={`/jobs/${bid.job.id}`} alignSelf="start" px={5} {...subtlePillButtonStyles}>
             View job
           </Button>
@@ -218,6 +248,7 @@ const MyBids = () => {
   const [pendingAction, setPendingAction] = React.useState(null);
   const [actionError, setActionError] = React.useState(null);
   const [actionLoading, setActionLoading] = React.useState(false);
+  const [actionMessage, setActionMessage] = React.useState('');
 
   const refetchQueries = [
     { query: GET_MY_BIDS },
@@ -230,6 +261,10 @@ const MyBids = () => {
     awaitRefetchQueries: true,
   });
   const [declineOffer] = useMutation(DECLINE_OFFER, {
+    refetchQueries,
+    awaitRefetchQueries: true,
+  });
+  const [submitWork] = useMutation(SUBMIT_WORK, {
     refetchQueries,
     awaitRefetchQueries: true,
   });
@@ -258,10 +293,17 @@ const MyBids = () => {
     setPendingAction({ type: 'decline', bid });
   };
 
+  const openSubmitWork = (bid) => {
+    setActionError(null);
+    setActionMessage('');
+    setPendingAction({ type: 'submit', bid });
+  };
+
   const closeConfirm = () => {
     if (!actionLoading) {
       setPendingAction(null);
       setActionError(null);
+      setActionMessage('');
     }
   };
 
@@ -274,10 +316,18 @@ const MyBids = () => {
     try {
       if (pendingAction.type === 'accept') {
         await acceptOffer({ variables: { bidId: pendingAction.bid.id } });
-      } else {
+      } else if (pendingAction.type === 'decline') {
         await declineOffer({ variables: { bidId: pendingAction.bid.id } });
+      } else if (pendingAction.type === 'submit') {
+        await submitWork({
+          variables: {
+            jobId: pendingAction.bid.job.id,
+            message: actionMessage.trim() || null,
+          },
+        });
       }
       setPendingAction(null);
+      setActionMessage('');
     } catch (err) {
       setActionError({ message: graphqlErrorMessage(err) });
     } finally {
@@ -290,13 +340,23 @@ const MyBids = () => {
       ? 'Accept this offer?'
       : pendingAction?.type === 'decline'
         ? 'Decline this offer?'
-        : '';
+        : pendingAction?.type === 'submit'
+          ? 'Submit work?'
+          : '';
   const dialogDescription =
     pendingAction?.type === 'accept'
       ? `Accepting starts the contract for "${pendingAction.bid.job.title}". Competing proposals will be closed.`
       : pendingAction?.type === 'decline'
         ? `Your proposal for "${pendingAction.bid.job.title}" returns to pending so the client can offer someone else.`
-        : '';
+        : pendingAction?.type === 'submit'
+          ? `This tells the client the work for "${pendingAction.bid.job.title}" is ready to review. They can approve & release or request changes. Optional note below.`
+          : '';
+  const confirmLabel =
+    pendingAction?.type === 'decline'
+      ? 'Decline offer'
+      : pendingAction?.type === 'submit'
+        ? 'Submit work'
+        : 'Accept offer';
 
   return (
     <PageShell accents={pageAccents} maxW="1120px" py={{ base: 5, md: 8 }} px={{ base: 4, lg: 8 }}>
@@ -321,8 +381,8 @@ const MyBids = () => {
               My proposals
             </Heading>
             <Text color="rgba(226, 232, 240, 0.64)">
-              Track proposals, respond to offers, and open active contracts here. Marketplace search only lists open jobs —
-              use this page after you are offered or hired.
+              Track proposals, respond to offers, submit finished work, and open active contracts here. Marketplace
+              search only lists open jobs — use this page after you are offered or hired.
             </Text>
             {offeredCount > 0 ? (
               <Text color="rgba(125, 211, 252, 0.95)" fontWeight="semibold" mt={1}>
@@ -364,7 +424,13 @@ const MyBids = () => {
         {bids.length ? (
           <VStack align="stretch" gap={4}>
             {bids.map((bid) => (
-              <MyBidCard key={bid.id} bid={bid} onAccept={openAccept} onDecline={openDecline} />
+              <MyBidCard
+                key={bid.id}
+                bid={bid}
+                onAccept={openAccept}
+                onDecline={openDecline}
+                onSubmitWork={openSubmitWork}
+              />
             ))}
           </VStack>
         ) : null}
@@ -374,13 +440,30 @@ const MyBids = () => {
         open={!!pendingAction}
         title={dialogTitle}
         description={dialogDescription}
-        confirmLabel={pendingAction?.type === 'decline' ? 'Decline offer' : 'Accept offer'}
+        confirmLabel={confirmLabel}
         colorPalette={pendingAction?.type === 'decline' ? 'red' : 'green'}
         loading={actionLoading}
         error={actionError}
         onConfirm={handleConfirm}
         onClose={closeConfirm}
-      />
+      >
+        {pendingAction?.type === 'submit' ? (
+          <Field.Root>
+            <Field.Label color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+              Note to the client (optional)
+            </Field.Label>
+            <Textarea
+              value={actionMessage}
+              onChange={(event) => setActionMessage(event.target.value)}
+              placeholder="What did you deliver, and where can they find it?"
+              minH="110px"
+              resize="vertical"
+              maxLength={2000}
+              {...inputStyles}
+            />
+          </Field.Root>
+        ) : null}
+      </ConfirmDialog>
     </PageShell>
   );
 };

@@ -4,6 +4,7 @@ import { Badge, Box, Button, HStack, Heading, Text, VStack } from '@chakra-ui/re
 import { CheckCircle2, Copy, Heart, LockKeyhole, SendHorizontal, ShieldCheck } from 'lucide-react';
 import GlassPanel from '../../../components/ui/GlassPanel.jsx';
 import { formatBudgetLabel, formatPostedTime } from '../utils.jsx';
+import { getFreelancerWorkFlags } from '../paymentActions.js';
 
 const SidebarStat = ({ label, value }) => (
   <Box>
@@ -16,7 +17,7 @@ const SidebarStat = ({ label, value }) => (
   </Box>
 );
 
-const getProposalAction = ({ job, userRole, myBid, loadingMyBid }) => {
+const getProposalAction = ({ job, userRole, myBid, loadingMyBid, onSubmitWork }) => {
   if (userRole !== 'FREELANCER') {
     return {
       disabled: true,
@@ -47,15 +48,51 @@ const getProposalAction = ({ job, userRole, myBid, loadingMyBid }) => {
   }
 
   if (myBid?.status === 'ACCEPTED') {
+    const { canSubmitWork, awaitingReview, awaitingFunding, changesRequested, isPaid } =
+      getFreelancerWorkFlags({ ...myBid, job });
+
+    if (canSubmitWork) {
+      return {
+        onClick: onSubmitWork,
+        icon: <SendHorizontal size={17} />,
+        label: 'Submit work',
+        copy: changesRequested
+          ? 'The client requested changes. Submit again when the update is ready.'
+          : 'Tell the client this work is ready to review. They can approve & release or request changes.',
+        highlight: true,
+      };
+    }
+
+    if (awaitingReview) {
+      return {
+        as: Link,
+        to: '/my-bids',
+        icon: <CheckCircle2 size={17} />,
+        label: 'Awaiting client review',
+        copy: 'You submitted work. The client can approve & release or request changes.',
+        highlight: true,
+      };
+    }
+
+    if (awaitingFunding) {
+      return {
+        as: Link,
+        to: '/my-bids',
+        icon: <CheckCircle2 size={17} />,
+        label: 'Waiting for escrow funding',
+        copy: 'You are hired. The client needs to fund on-chain escrow before you can submit work.',
+        highlight: true,
+      };
+    }
+
     return {
       as: Link,
       to: '/my-bids',
       icon: <CheckCircle2 size={17} />,
-      label: 'View active contract',
-      copy:
-        job.status === 'COMPLETED'
-          ? 'This contract is completed. Open My proposals for history.'
-          : 'You are hired on this job. Track it from My proposals.',
+      label: isPaid ? 'View completed contract' : 'View active contract',
+      copy: isPaid
+        ? 'This contract is completed. Open My proposals for history.'
+        : 'You are hired on this job. Track it from My proposals.',
       highlight: true,
     };
   }
@@ -99,10 +136,19 @@ const JobDetailSidebar = ({
   myBid = null,
   loadingMyBid = false,
   onToggleSaved,
+  onSubmitWork,
 }) => {
   const [copied, setCopied] = React.useState(false);
   const proposalCount = job.bids?.length ?? 0;
-  const proposalAction = getProposalAction({ job, userRole, myBid, loadingMyBid });
+  const proposalAction = getProposalAction({ job, userRole, myBid, loadingMyBid, onSubmitWork });
+  const panelTitle =
+    myBid?.status === 'ACCEPTED'
+      ? job.status === 'COMPLETED'
+        ? 'Contract'
+        : 'Your contract'
+      : myBid
+        ? 'Your proposal'
+        : 'Ready to bid?';
 
   const handleCopyLink = async () => {
     try {
@@ -119,7 +165,7 @@ const JobDetailSidebar = ({
       <GlassPanel variant="subtle" borderRadius="24px" p={{ base: 5, md: 6 }}>
         <VStack align="stretch" gap={4}>
           <Heading as="h2" size="md" color="white" letterSpacing="0">
-            Ready to bid?
+            {panelTitle}
           </Heading>
           <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.65">
             {proposalAction.copy}
@@ -129,6 +175,7 @@ const JobDetailSidebar = ({
             to={proposalAction.to}
             type="button"
             disabled={proposalAction.disabled}
+            onClick={proposalAction.onClick}
             borderRadius="full"
             bgGradient="to-r"
             gradientFrom="cyan.400"

@@ -59,6 +59,8 @@ public class Notification {
         OFFER_ACCEPTED,
         OFFER_DECLINED,
         OFFER_WITHDRAWN,
-        BID_NOT_SELECTED
+        BID_NOT_SELECTED,
+        WORK_SUBMITTED,
+        CHANGES_REQUESTED
     }
 }

@@ -401,6 +401,16 @@ export const GET_MY_BID_FOR_JOB = gql`
         fileSizeBytes
         publicUrl
       }
+      payment {
+        id
+        status
+        amount
+        fundingMode
+        workSubmittedAt
+        workSubmissionMessage
+        changesRequestedAt
+        changesRequestedMessage
+      }
     }
   }
 `;
@@ -430,6 +440,16 @@ export const GET_MY_BIDS = gql`
         hourlyRateMax
         fixedBudget
         currencyCode
+      }
+      payment {
+        id
+        status
+        amount
+        fundingMode
+        workSubmittedAt
+        workSubmissionMessage
+        changesRequestedAt
+        changesRequestedMessage
       }
     }
   }
@@ -648,6 +668,44 @@ export const GET_PAYMENT_FOR_JOB = gql`
       platformFeePercent
       chainId
       escrowAddress
+      workSubmittedAt
+      workSubmissionMessage
+      changesRequestedAt
+      changesRequestedMessage
+    }
+  }
+`;
+
+export const SUBMIT_WORK = gql`
+  mutation SubmitWork($jobId: ID!, $message: String) {
+    submitWork(jobId: $jobId, message: $message) {
+      id
+      status
+      workSubmittedAt
+      workSubmissionMessage
+      changesRequestedAt
+      changesRequestedMessage
+      job {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const REQUEST_CHANGES = gql`
+  mutation RequestChanges($jobId: ID!, $message: String) {
+    requestChanges(jobId: $jobId, message: $message) {
+      id
+      status
+      workSubmittedAt
+      workSubmissionMessage
+      changesRequestedAt
+      changesRequestedMessage
+      job {
+        id
+        status
+      }
     }
   }
 `;

@@ -17,6 +17,8 @@ public interface SavedJobRepository extends JpaRepository<SavedJob, Long> {
 
     void deleteByFreelancerAndJob(User freelancer, Job job);
 
+    void deleteByJob(Job job);
+
     @Query("""
             select sj.job
             from SavedJob sj

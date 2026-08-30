@@ -104,7 +104,23 @@ const PencilIcon = (props) => (
   </Box>
 );
 
-const getOption = (options, value) => options.find((option) => option.value === value) ?? options[0];
+const getOption = (options, value) => options.find((option) => option.value === value);
+
+const getInitialExpandedSection = (draft) => {
+  if (!draft.scopeSize) {
+    return 'scope';
+  }
+
+  if (getScopeDurationDays(draft.scopeDurationAmount, draft.scopeDurationUnit) < 1) {
+    return 'duration';
+  }
+
+  if (!draft.experienceLevel) {
+    return 'experience';
+  }
+
+  return null;
+};
 
 const formatDurationSummary = (amount, unit) => {
   const numericAmount = Number.parseInt(String(amount ?? ''), 10);
@@ -205,7 +221,7 @@ const StepThree = ({
   onExperienceLevelChange,
   onContractToHireChange,
 }) => {
-  const [expandedSection, setExpandedSection] = useState(null);
+  const [expandedSection, setExpandedSection] = useState(() => getInitialExpandedSection(draft));
   const durationDays = getScopeDurationDays(draft.scopeDurationAmount, draft.scopeDurationUnit);
   const scopeOption = getOption(scopeOptions, draft.scopeSize);
   const experienceOption = getOption(experienceOptions, draft.experienceLevel);
@@ -222,15 +238,15 @@ const StepThree = ({
       <SectionShell
         id="scope"
         title="scope of work"
-        summary={scopeOption.label}
-        description={scopeOption.description}
+        summary={scopeOption?.label ?? 'Choose project size'}
+        description={scopeOption?.description}
         open={expandedSection === 'scope'}
         onToggle={handleSectionToggle}
       >
         <Field.Root required invalid={!!error && error.toLowerCase().includes('scope')}>
           <RadioGroup.Root
             name="scopeSize"
-            value={draft.scopeSize}
+            value={draft.scopeSize || null}
             onValueChange={({ value }) => onScopeSizeChange(value)}
           >
             <VStack align="stretch" gap={3}>
@@ -272,11 +288,14 @@ const StepThree = ({
             <NativeSelect.Root size="lg">
               <NativeSelect.Field
                 name="scopeDurationUnit"
-                value={draft.scopeDurationUnit}
+                value={draft.scopeDurationUnit || ''}
                 onChange={(event) => onDurationUnitChange(event.currentTarget.value)}
                 h="58px"
                 {...inputStyles}
               >
+                <option value="" disabled style={{ color: optionTextColor }}>
+                  Select unit
+                </option>
                 {durationUnitOptions.map((option) => (
                   <option key={option.value} value={option.value} style={{ color: optionTextColor }}>
                     {option.label}
@@ -292,15 +311,19 @@ const StepThree = ({
       <SectionShell
         id="experience"
         title="experience level"
-        summary={experienceOption.label === 'Entry' ? 'Entry level' : experienceOption.label}
-        description={experienceOption.description}
+        summary={
+          experienceOption
+            ? (experienceOption.label === 'Entry' ? 'Entry level' : experienceOption.label)
+            : 'Choose experience level'
+        }
+        description={experienceOption?.description}
         open={expandedSection === 'experience'}
         onToggle={handleSectionToggle}
       >
         <Field.Root required invalid={!!error && error.toLowerCase().includes('experience')}>
           <RadioGroup.Root
             name="experienceLevel"
-            value={draft.experienceLevel}
+            value={draft.experienceLevel || null}
             onValueChange={({ value }) => onExperienceLevelChange(value)}
           >
             <VStack align="stretch" gap={3}>

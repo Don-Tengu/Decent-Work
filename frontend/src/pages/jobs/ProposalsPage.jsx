@@ -1,7 +1,7 @@
 import React from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { Badge, Button, Heading, HStack, Text, VStack } from '@chakra-ui/react';
+import { Badge, Button, Field, Heading, HStack, Text, Textarea, VStack } from '@chakra-ui/react';
 import { ArrowLeft, LayoutDashboard } from 'lucide-react';
 import {
   CONFIRM_ESCROW_FUNDING,
@@ -11,6 +11,7 @@ import {
   GET_PAYMENT_FOR_JOB,
   OFFER_BID,
   RELEASE_PAYMENT,
+  REQUEST_CHANGES,
   WITHDRAW_OFFER,
 } from '@/graphql/queries.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -22,6 +23,7 @@ import GlassPanel from '../../components/ui/GlassPanel.jsx';
 import JobsPageState from './components/JobsPageState.jsx';
 import ProposalCard from './components/ProposalCard.jsx';
 import FreelancerDrawer from './components/FreelancerDrawer.jsx';
+import { inputStyles } from '../post-job/styles.js';
 import { formatBudgetLabel, formatCurrency } from './utils.jsx';
 import { getDisplayName } from '@/utils/user.js';
 import { fundEscrow, netAfterFee, releaseEscrow } from '@/utils/escrow.js';
@@ -91,6 +93,7 @@ const ProposalsPage = () => {
   const [pendingAction, setPendingAction] = React.useState(null);
   const [actionError, setActionError] = React.useState(null);
   const [actionLoading, setActionLoading] = React.useState(false);
+  const [actionMessage, setActionMessage] = React.useState('');
   const lastActionRef = React.useRef(null);
 
   const { data: jobData, loading: loadingJob, error: jobError } = useQuery(GET_JOB, {
@@ -141,7 +144,11 @@ const ProposalsPage = () => {
   const canFund =
     job?.status === 'IN_PROGRESS' && hiredBid && payment?.status === 'AWAITING_FUNDING' && isOnChainPayment;
   const canRelease =
-    job?.status === 'IN_PROGRESS' && hiredBid && payment?.status === 'ESCROWED';
+    job?.status === 'IN_PROGRESS' &&
+    hiredBid &&
+    (payment?.status === 'ESCROWED' || payment?.status === 'IN_REVIEW');
+  const canRequestChanges =
+    job?.status === 'IN_PROGRESS' && hiredBid && payment?.status === 'IN_REVIEW';
 
   const refetchQueries = [
     { query: GET_JOB, variables: { id: jobId } },
@@ -169,6 +176,10 @@ const ProposalsPage = () => {
     refetchQueries,
     awaitRefetchQueries: true,
   });
+  const [requestChanges] = useMutation(REQUEST_CHANGES, {
+    refetchQueries,
+    awaitRefetchQueries: true,
+  });
 
   const selectedBid = React.useMemo(
     () => (selectedBidId ? bids.find((bid) => bid.id === selectedBidId) ?? null : null),
@@ -192,13 +203,21 @@ const ProposalsPage = () => {
 
   const openRelease = (bid) => {
     setActionError(null);
+    setActionMessage('');
     setPendingAction({ type: 'release', bid });
+  };
+
+  const openRequestChanges = (bid) => {
+    setActionError(null);
+    setActionMessage('');
+    setPendingAction({ type: 'requestChanges', bid });
   };
 
   const closeConfirm = () => {
     if (!actionLoading) {
       setPendingAction(null);
       setActionError(null);
+      setActionMessage('');
     }
   };
 
@@ -222,7 +241,11 @@ const ProposalsPage = () => {
         ? 'Withdraw offer?'
         : actionType === 'fund'
           ? 'Fund escrow?'
-          : 'Release payment?';
+          : actionType === 'requestChanges'
+            ? 'Request changes?'
+            : payment?.status === 'IN_REVIEW'
+              ? 'Approve & release payment?'
+              : 'Release payment?';
 
   const dialogDescription =
     actionType === 'offer'
@@ -231,9 +254,11 @@ const ProposalsPage = () => {
         ? `This withdraws your offer to ${pendingName}. Their proposal returns to pending so you can offer someone else.`
         : actionType === 'fund'
           ? `You will deposit ${pendingAmount} into the escrow contract for ${pendingName} on ${WEB3_CONFIG.chainName}. Platform fee (${feePercent}%) is taken only when you release.`
-          : isOnChainPayment
-            ? `This releases escrow on-chain. ${pendingName} receives ~${netAmount || pendingAmount}; platform takes ${feePercent}%. The job will be marked complete.`
-            : `This releases ${pendingAmount} to ${pendingName} and marks the job complete. This cannot be undone.`;
+          : actionType === 'requestChanges'
+            ? `${pendingName} will be asked to update the work. Funds stay in escrow until you approve & release.`
+            : isOnChainPayment
+              ? `This releases escrow on-chain. ${pendingName} receives ~${netAmount || pendingAmount}; platform takes ${feePercent}%. The job will be marked complete.`
+              : `This releases ${pendingAmount} to ${pendingName} and marks the job complete. This cannot be undone.`;
 
   const confirmLabel =
     actionType === 'offer'
@@ -242,7 +267,11 @@ const ProposalsPage = () => {
         ? 'Withdraw offer'
         : actionType === 'fund'
           ? 'Fund escrow'
-          : 'Release payment';
+          : actionType === 'requestChanges'
+            ? 'Request changes'
+            : payment?.status === 'IN_REVIEW'
+              ? 'Approve & release'
+              : 'Release payment';
 
   const handleConfirm = async () => {
     if (!pendingAction) {
@@ -268,7 +297,7 @@ const ProposalsPage = () => {
         const { txHash } = await fundEscrow({
           jobId,
           freelancerAddress: freelancerWallet,
-          amountEth: pendingAction.bid.amount,
+          amount: pendingAction.bid.amount,
         });
         await confirmEscrowFunding({
           variables: { paymentId: payment.id, transactionHash: txHash },
@@ -288,8 +317,13 @@ const ProposalsPage = () => {
         } else {
           await releasePayment({ variables: { paymentId: payment.id } });
         }
+      } else if (pendingAction.type === 'requestChanges') {
+        await requestChanges({
+          variables: { jobId, message: actionMessage.trim() || null },
+        });
       }
       setPendingAction(null);
+      setActionMessage('');
     } catch (err) {
       setActionError({ message: graphqlErrorMessage(err) });
     } finally {
@@ -309,7 +343,9 @@ const ProposalsPage = () => {
       ? 'Payment released. Review the hired freelancer and proposal history below.'
       : payment?.status === 'AWAITING_FUNDING'
         ? 'Freelancer hired. Fund the on-chain escrow to lock payment protection.'
-        : 'A freelancer is hired. Release payment when the work is complete.'
+        : payment?.status === 'IN_REVIEW'
+          ? 'The freelancer submitted work. Approve & release, or request changes.'
+          : 'A freelancer is hired. They can submit work when done. You can also release payment without a submission.'
     : offeredBid
       ? `Offer sent to ${getDisplayName(offeredBid.freelancer)}. Waiting for them to accept or decline.`
       : 'Send an offer to a freelancer. They must accept before the job starts and other proposals are closed.';
@@ -320,6 +356,7 @@ const ProposalsPage = () => {
     onWithdrawOffer: openWithdraw,
     onFund: openFund,
     onRelease: openRelease,
+    onRequestChanges: openRequestChanges,
     hasOutstandingOffer,
   };
 
@@ -398,7 +435,19 @@ const ProposalsPage = () => {
                 <>
                   <Text aria-hidden>·</Text>
                   <Text color="rgba(134, 239, 172, 0.92)" fontWeight="medium">
-                    {isOnChainPayment ? 'Funds in on-chain escrow' : 'Funds in escrow'}
+                    {payment.changesRequestedAt
+                      ? 'Changes requested'
+                      : isOnChainPayment
+                        ? 'Funds in on-chain escrow'
+                        : 'Funds in escrow'}
+                  </Text>
+                </>
+              ) : null}
+              {payment?.status === 'IN_REVIEW' ? (
+                <>
+                  <Text aria-hidden>·</Text>
+                  <Text color="rgba(125, 211, 252, 0.95)" fontWeight="medium">
+                    Work submitted · in review
                   </Text>
                 </>
               ) : null}
@@ -504,10 +553,45 @@ const ProposalsPage = () => {
                     work starts. Both wallets must be connected.
                   </Text>
                 ) : null}
-                {canRelease ? (
+                {payment?.status === 'IN_REVIEW' || payment?.workSubmissionMessage || payment?.changesRequestedMessage ? (
+                  <GlassPanel variant="soft" borderRadius="18px" p={4}>
+                    <VStack align="stretch" gap={2}>
+                      {payment.status === 'IN_REVIEW' ? (
+                        <Text color="rgba(125, 211, 252, 0.95)" fontSize="sm" fontWeight="semibold">
+                          Work submitted for review
+                        </Text>
+                      ) : payment.changesRequestedMessage ? (
+                        <Text color="rgba(252, 211, 77, 0.95)" fontSize="sm" fontWeight="semibold">
+                          You requested changes
+                        </Text>
+                      ) : null}
+                      {payment.workSubmissionMessage ? (
+                        <Text color="rgba(226, 232, 240, 0.78)" fontSize="sm" lineHeight="1.6" whiteSpace="pre-line">
+                          {payment.workSubmissionMessage}
+                        </Text>
+                      ) : payment.status === 'IN_REVIEW' ? (
+                        <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm">
+                          The freelancer submitted work without a note.
+                        </Text>
+                      ) : null}
+                      {payment.changesRequestedMessage ? (
+                        <Text color="rgba(226, 232, 240, 0.68)" fontSize="sm" lineHeight="1.6" whiteSpace="pre-line">
+                          {payment.changesRequestedMessage}
+                        </Text>
+                      ) : null}
+                    </VStack>
+                  </GlassPanel>
+                ) : null}
+                {canRequestChanges ? (
                   <Text color="rgba(226, 232, 240, 0.55)" fontSize="sm">
-                    When the work is done, use <strong>Release payment</strong> on the hired card above.
-                    That marks the job complete.
+                    Use <strong>Approve &amp; release</strong> if the work is done, or{' '}
+                    <strong>Request changes</strong> to send it back. Funds stay in escrow until you release.
+                  </Text>
+                ) : null}
+                {canRelease && !canRequestChanges ? (
+                  <Text color="rgba(226, 232, 240, 0.55)" fontSize="sm">
+                    The freelancer can submit work from My proposals. You can still{' '}
+                    <strong>Release payment</strong> without waiting.
                   </Text>
                 ) : null}
               </VStack>
@@ -572,6 +656,7 @@ const ProposalsPage = () => {
         onWithdrawOffer={openWithdraw}
         onFund={openFund}
         onRelease={openRelease}
+        onRequestChanges={openRequestChanges}
       />
 
       <ConfirmDialog
@@ -579,12 +664,29 @@ const ProposalsPage = () => {
         title={dialogTitle}
         description={dialogDescription}
         confirmLabel={confirmLabel}
-        colorPalette="green"
+        colorPalette={actionType === 'requestChanges' ? 'orange' : 'green'}
         loading={actionLoading}
         error={actionError}
         onConfirm={handleConfirm}
         onClose={closeConfirm}
-      />
+      >
+        {actionType === 'requestChanges' ? (
+          <Field.Root>
+            <Field.Label color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+              What should they change? (optional)
+            </Field.Label>
+            <Textarea
+              value={actionMessage}
+              onChange={(event) => setActionMessage(event.target.value)}
+              placeholder="Describe the changes you need."
+              minH="110px"
+              resize="vertical"
+              maxLength={2000}
+              {...inputStyles}
+            />
+          </Field.Root>
+        ) : null}
+      </ConfirmDialog>
     </PageShell>
   );
 };

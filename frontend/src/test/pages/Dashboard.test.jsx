@@ -443,7 +443,9 @@ describe('Client Dashboard', () => {
 
     expect(await screen.findByText('Wallet Integration Sprint')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^in progress$/i })).toBeInTheDocument();
-    expect(screen.getByText(/funds are in escrow/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/open the contract to review submitted work, request changes, or release payment/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /manage contract/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /manage contract/i }));
@@ -491,7 +493,7 @@ describe('Client Dashboard', () => {
             cancelJob: {
               __typename: 'Job',
               id: 'job-draft',
-              status: 'CANCELLED',
+              status: 'DRAFT',
             },
           },
         },
@@ -505,7 +507,7 @@ describe('Client Dashboard', () => {
     const dialog = await screen.findByRole('dialog', { name: /remove draft/i });
 
     expect(within(dialog).getByText(/draft job post/i)).toBeInTheDocument();
-    expect(within(dialog).getByText(/no longer be available to continue posting/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/deleted and cannot be continued later/i)).toBeInTheDocument();
     expect(confirmSpy).not.toHaveBeenCalled();
 
     await user.click(within(dialog).getByRole('button', { name: /remove draft/i }));

@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title FreelanceEscrow
- * @dev Simple native-ETH escrow for a freelance marketplace.
- *      Client funds on hire acceptance; client releases to freelancer (minus platform fee).
+ * @dev ERC-20 escrow for a freelance marketplace (MVP: USDC; extra tokens via allowlist).
+ *      Client approves + createEscrow; client releasePayment splits freelancer / platform fee.
  */
 contract FreelanceEscrow is ReentrancyGuard, Ownable {
+    using SafeERC20 for IERC20;
+
     enum EscrowStatus {
         PENDING,
         FUNDED,
@@ -22,6 +26,7 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
         uint256 jobId;
         address client;
         address freelancer;
+        address token;
         uint256 amount;
         EscrowStatus status;
         uint256 createdAt;
@@ -31,14 +36,18 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
     mapping(uint256 => Escrow) public escrows;
     uint256 public escrowCount;
 
-    uint256 public platformFeePercent = 5; // 5% platform fee
+    mapping(address => bool) public allowedTokens;
+
+    uint256 public platformFeePercent = 5;
     address public platformWallet;
 
+    event TokenAllowlistUpdated(address indexed token, bool allowed);
     event EscrowCreated(
         uint256 indexed escrowId,
         uint256 indexed jobId,
         address client,
         address freelancer,
+        address token,
         uint256 amount
     );
     event EscrowFunded(uint256 indexed escrowId, uint256 amount);
@@ -46,22 +55,30 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
     event EscrowRefunded(uint256 indexed escrowId, uint256 amount);
     event EscrowDisputed(uint256 indexed escrowId);
 
-    constructor(address _platformWallet) Ownable(msg.sender) {
+    constructor(address _platformWallet, address _paymentToken) Ownable(msg.sender) {
         require(_platformWallet != address(0), "Invalid platform wallet");
+        require(_paymentToken != address(0), "Invalid payment token");
         platformWallet = _platformWallet;
+        allowedTokens[_paymentToken] = true;
+        emit TokenAllowlistUpdated(_paymentToken, true);
+    }
+
+    function setAllowedToken(address token, bool allowed) external onlyOwner {
+        require(token != address(0), "Invalid token");
+        allowedTokens[token] = allowed;
+        emit TokenAllowlistUpdated(token, allowed);
     }
 
     /**
-     * @dev Create and fund a new escrow in one step.
-     * @return escrowId The newly created escrow id
+     * @dev Pull `amount` of `token` from the client (must be allowlisted; client must approve first).
      */
-    function createEscrow(uint256 _jobId, address _freelancer)
+    function createEscrow(uint256 _jobId, address _freelancer, address _token, uint256 _amount)
         external
-        payable
         nonReentrant
         returns (uint256)
     {
-        require(msg.value > 0, "Amount must be greater than 0");
+        require(allowedTokens[_token], "Token not allowed");
+        require(_amount > 0, "Amount must be greater than 0");
         require(_freelancer != address(0), "Invalid freelancer address");
         require(_freelancer != msg.sender, "Client and freelancer cannot be the same");
 
@@ -71,21 +88,21 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
             jobId: _jobId,
             client: msg.sender,
             freelancer: _freelancer,
-            amount: msg.value,
+            token: _token,
+            amount: _amount,
             status: EscrowStatus.FUNDED,
             createdAt: block.timestamp,
             completedAt: 0
         });
 
-        emit EscrowCreated(escrowCount, _jobId, msg.sender, _freelancer, msg.value);
-        emit EscrowFunded(escrowCount, msg.value);
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+
+        emit EscrowCreated(escrowCount, _jobId, msg.sender, _freelancer, _token, _amount);
+        emit EscrowFunded(escrowCount, _amount);
 
         return escrowCount;
     }
 
-    /**
-     * @dev Release payment to freelancer (client only). Platform fee is deducted.
-     */
     function releasePayment(uint256 _escrowId) external nonReentrant {
         Escrow storage escrow = escrows[_escrowId];
 
@@ -98,18 +115,13 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
         escrow.status = EscrowStatus.COMPLETED;
         escrow.completedAt = block.timestamp;
 
-        (bool successFreelancer,) = escrow.freelancer.call{value: freelancerAmount}("");
-        require(successFreelancer, "Transfer to freelancer failed");
-
-        (bool successPlatform,) = platformWallet.call{value: fee}("");
-        require(successPlatform, "Transfer to platform failed");
+        IERC20 token = IERC20(escrow.token);
+        token.safeTransfer(escrow.freelancer, freelancerAmount);
+        token.safeTransfer(platformWallet, fee);
 
         emit EscrowCompleted(_escrowId, freelancerAmount, fee);
     }
 
-    /**
-     * @dev Full refund to client. Callable by freelancer (mutual) or platform owner.
-     */
     function refundPayment(uint256 _escrowId) external nonReentrant {
         Escrow storage escrow = escrows[_escrowId];
 
@@ -118,15 +130,11 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
 
         escrow.status = EscrowStatus.REFUNDED;
 
-        (bool success,) = escrow.client.call{value: escrow.amount}("");
-        require(success, "Refund failed");
+        IERC20(escrow.token).safeTransfer(escrow.client, escrow.amount);
 
         emit EscrowRefunded(_escrowId, escrow.amount);
     }
 
-    /**
-     * @dev Raise a dispute and lock funds until platform resolves.
-     */
     function raiseDispute(uint256 _escrowId) external {
         Escrow storage escrow = escrows[_escrowId];
 
@@ -141,9 +149,6 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
         emit EscrowDisputed(_escrowId);
     }
 
-    /**
-     * @dev Resolve dispute (only owner). true = pay freelancer; false = refund client.
-     */
     function resolveDispute(uint256 _escrowId, bool releaseToFreelancer)
         external
         onlyOwner
@@ -153,6 +158,8 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
 
         require(escrow.status == EscrowStatus.DISPUTED, "Escrow not disputed");
 
+        IERC20 token = IERC20(escrow.token);
+
         if (releaseToFreelancer) {
             uint256 fee = (escrow.amount * platformFeePercent) / 100;
             uint256 freelancerAmount = escrow.amount - fee;
@@ -160,18 +167,14 @@ contract FreelanceEscrow is ReentrancyGuard, Ownable {
             escrow.status = EscrowStatus.COMPLETED;
             escrow.completedAt = block.timestamp;
 
-            (bool successFreelancer,) = escrow.freelancer.call{value: freelancerAmount}("");
-            require(successFreelancer, "Transfer to freelancer failed");
-
-            (bool successPlatform,) = platformWallet.call{value: fee}("");
-            require(successPlatform, "Transfer to platform failed");
+            token.safeTransfer(escrow.freelancer, freelancerAmount);
+            token.safeTransfer(platformWallet, fee);
 
             emit EscrowCompleted(_escrowId, freelancerAmount, fee);
         } else {
             escrow.status = EscrowStatus.REFUNDED;
 
-            (bool success,) = escrow.client.call{value: escrow.amount}("");
-            require(success, "Refund failed");
+            token.safeTransfer(escrow.client, escrow.amount);
 
             emit EscrowRefunded(_escrowId, escrow.amount);
         }

@@ -94,7 +94,7 @@ const JobPostFooter = ({
                 }}
                 _active={{ transform: 'translateY(0)' }}
                 onClick={onContinue}
-                disabled={(activeStep.id === 'skills' && taxonomyLoading) || isSubmitting}
+                disabled={(activeStep.id === 'skills' && taxonomyLoading) || isSubmitting || isSavingDraft}
               >
                 {continueLabel}
               </Button>
