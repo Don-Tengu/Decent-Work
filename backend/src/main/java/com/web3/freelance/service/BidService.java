@@ -2,8 +2,11 @@ package com.web3.freelance.service;
 
 import com.web3.freelance.exception.ErrorCode;
 import com.web3.freelance.exception.ResourceNotFoundException;
+import com.web3.freelance.exception.UnauthorizedException;
+import com.web3.freelance.exception.ValidationException;
 import com.web3.freelance.model.Bid;
 import com.web3.freelance.model.Job;
+import com.web3.freelance.model.Notification;
 import com.web3.freelance.model.User;
 import com.web3.freelance.repository.BidRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ public class BidService {
     private final BidRepository bidRepository;
     private final JobService jobService;
     private final UserService userService;
+    private final NotificationService notificationService;
 
     public Bid getBidById(Long id) {
         return bidRepository.findById(id)
@@ -61,20 +65,145 @@ public class BidService {
 
     /**
      * Rejects every still-pending proposal on the job except the accepted one.
-     * Invoked within the hire transaction when a client accepts a bid.
+     * Invoked when a freelancer accepts an offer.
      */
     @Transactional
-    public void rejectCompetingBids(Job job, Long acceptedBidId) {
+    public List<Bid> rejectCompetingBids(Job job, Long acceptedBidId) {
         List<Bid> rejected = bidRepository.findByJobAndStatus(job, Bid.BidStatus.PENDING).stream()
                 .filter(bid -> !bid.getId().equals(acceptedBidId))
                 .toList();
 
         if (rejected.isEmpty()) {
-            return;
+            return List.of();
         }
 
         rejected.forEach(bid -> bid.setStatus(Bid.BidStatus.REJECTED));
-        bidRepository.saveAll(rejected);
+        return bidRepository.saveAll(rejected);
+    }
+
+    /**
+     * Client sends an offer for a pending proposal. Does not reject competitors or create payment.
+     */
+    @Transactional
+    public Bid offerBid(Long bidId, Long clientId) {
+        Bid bid = getBidById(bidId);
+        Job job = bid.getJob();
+
+        if (!job.getClient().getId().equals(clientId)) {
+            throw new UnauthorizedException(
+                    ErrorCode.INSUFFICIENT_PERMISSIONS,
+                    "Only the job owner can send an offer");
+        }
+
+        if (job.getStatus() != Job.JobStatus.OPEN) {
+            throw new ValidationException(
+                    ErrorCode.JOB_ALREADY_ASSIGNED,
+                    "This job is no longer open for hiring");
+        }
+
+        if (bid.getStatus() != Bid.BidStatus.PENDING) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "Only pending proposals can receive an offer");
+        }
+
+        List<Bid> outstandingOffers = bidRepository.findByJobAndStatus(job, Bid.BidStatus.OFFERED);
+        if (!outstandingOffers.isEmpty()) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "This job already has an outstanding offer. Withdraw it before offering someone else");
+        }
+
+        bid.setStatus(Bid.BidStatus.OFFERED);
+        Bid saved = bidRepository.save(bid);
+
+        String jobTitle = job.getTitle() != null ? job.getTitle() : "a job";
+        notificationService.create(
+                bid.getFreelancer(),
+                Notification.NotificationType.OFFER_RECEIVED,
+                "You received a job offer",
+                "A client offered you \"" + jobTitle + "\". Review and accept or decline in My proposals.",
+                "/my-bids",
+                job.getId(),
+                bid.getId()
+        );
+
+        return saved;
+    }
+
+    /**
+     * Freelancer declines an offer; proposal returns to PENDING so the client can hire someone else.
+     */
+    @Transactional
+    public Bid declineOffer(Long bidId, Long freelancerId) {
+        Bid bid = getBidById(bidId);
+        Job job = bid.getJob();
+
+        if (!bid.getFreelancer().getId().equals(freelancerId)) {
+            throw new UnauthorizedException(
+                    ErrorCode.INSUFFICIENT_PERMISSIONS,
+                    "Only the proposal owner can decline this offer");
+        }
+
+        if (bid.getStatus() != Bid.BidStatus.OFFERED) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "Only an outstanding offer can be declined");
+        }
+
+        bid.setStatus(Bid.BidStatus.PENDING);
+        Bid saved = bidRepository.save(bid);
+
+        String freelancerName = bid.getFreelancer().getUsername();
+        String jobTitle = job.getTitle() != null ? job.getTitle() : "your job";
+        notificationService.create(
+                job.getClient(),
+                Notification.NotificationType.OFFER_DECLINED,
+                "Offer declined",
+                freelancerName + " declined your offer on \"" + jobTitle + "\". You can offer another proposal.",
+                "/jobs/" + job.getId() + "/proposals",
+                job.getId(),
+                bid.getId()
+        );
+
+        return saved;
+    }
+
+    /**
+     * Client withdraws an outstanding offer; proposal returns to PENDING.
+     */
+    @Transactional
+    public Bid withdrawOffer(Long bidId, Long clientId) {
+        Bid bid = getBidById(bidId);
+        Job job = bid.getJob();
+
+        if (!job.getClient().getId().equals(clientId)) {
+            throw new UnauthorizedException(
+                    ErrorCode.INSUFFICIENT_PERMISSIONS,
+                    "Only the job owner can withdraw an offer");
+        }
+
+        if (bid.getStatus() != Bid.BidStatus.OFFERED) {
+            throw new ValidationException(
+                    ErrorCode.BUSINESS_LOGIC_ERROR,
+                    "Only an outstanding offer can be withdrawn");
+        }
+
+        bid.setStatus(Bid.BidStatus.PENDING);
+        Bid saved = bidRepository.save(bid);
+
+        String jobTitle = job.getTitle() != null ? job.getTitle() : "a job";
+        notificationService.create(
+                bid.getFreelancer(),
+                Notification.NotificationType.OFFER_WITHDRAWN,
+                "Offer withdrawn",
+                "The client withdrew their offer on \"" + jobTitle + "\". Your proposal is still pending.",
+                "/my-bids",
+                job.getId(),
+                bid.getId()
+        );
+
+        return saved;
     }
 
     @Transactional

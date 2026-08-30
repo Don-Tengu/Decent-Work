@@ -34,6 +34,7 @@ const StepContent = ({
   onBudgetAmountChange,
   onBudgetAmountBlur,
   onContinueWithoutBudget,
+  onPaymentModelChange,
   taxonomyNodes,
   taxonomyLoading,
   taxonomyError,
@@ -81,6 +82,7 @@ const StepContent = ({
         onBudgetAmountChange={onBudgetAmountChange}
         onBudgetAmountBlur={onBudgetAmountBlur}
         onContinueWithoutBudget={onContinueWithoutBudget}
+        onPaymentModelChange={onPaymentModelChange}
       />
     );
   }

@@ -6,10 +6,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  ACCEPT_BID,
   GET_JOB,
   GET_JOB_BIDS,
   GET_PAYMENT_FOR_JOB,
+  OFFER_BID,
 } from '@/graphql/queries.js';
 import ProposalsPage from '@/pages/jobs/ProposalsPage.jsx';
 
@@ -109,18 +109,31 @@ const escrowedPayment = {
   id: 'payment-1',
   status: 'ESCROWED',
   amount: 1200,
+  fundingMode: 'SIMULATED',
+  onChainEscrowId: null,
+  fundTransactionHash: null,
+  releaseTransactionHash: null,
+  clientWallet: null,
+  freelancerWallet: null,
+  platformFeePercent: 5,
+  chainId: null,
+  escrowAddress: '0x0',
 };
 
-const acceptBidMock = () => ({
-  request: { query: ACCEPT_BID, variables: { bidId: 'bid-1' } },
+const offerBidMock = () => ({
+  request: { query: OFFER_BID, variables: { bidId: 'bid-1' } },
   result: {
     data: {
-      acceptBid: {
-        __typename: 'Payment',
-        id: 'payment-1',
-        status: 'ESCROWED',
+      offerBid: {
+        __typename: 'Bid',
+        id: 'bid-1',
+        status: 'OFFERED',
         amount: 1200,
-        job: { __typename: 'Job', id: 'job-1', status: 'IN_PROGRESS' },
+        job: {
+          __typename: 'Job',
+          id: 'job-1',
+          status: 'OPEN',
+        },
       },
     },
   },
@@ -196,40 +209,40 @@ describe('ProposalsPage', () => {
     expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
   });
 
-  it('shows a Hire action on open proposals and confirms before hiring', async () => {
+  it('shows an Offer action and confirms before sending', async () => {
     const user = userEvent.setup();
 
     renderProposals([jobMock(), jobBidsMock([makeBid()]), paymentMock(null)]);
 
     await screen.findByText('Ada Lovelace');
-    await user.click(screen.getByRole('button', { name: 'Hire' }));
+    await user.click(screen.getByRole('button', { name: 'Offer' }));
 
-    const dialog = await screen.findByRole('dialog', { name: /hire ada lovelace/i });
-    expect(within(dialog).getByText(/declines every other proposal/i)).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: /send offer to ada lovelace/i });
+    expect(within(dialog).getByText(/other proposals stay open until they accept/i)).toBeInTheDocument();
   });
 
-  it('hires a freelancer end-to-end and surfaces the release action', async () => {
+  it('sends an offer and shows waiting state without rejecting others', async () => {
     const user = userEvent.setup();
 
     renderProposals([
       jobMock(),
       jobBidsMock([makeBid()]),
       paymentMock(null),
-      acceptBidMock(),
-      jobMock(makeJob({ status: 'IN_PROGRESS' })),
-      jobBidsMock([makeBid({ status: 'ACCEPTED' })]),
-      paymentMock(escrowedPayment),
+      offerBidMock(),
+      jobMock(),
+      jobBidsMock([makeBid({ status: 'OFFERED' })]),
+      paymentMock(null),
     ]);
 
     await screen.findByText('Ada Lovelace');
-    await user.click(screen.getByRole('button', { name: 'Hire' }));
+    await user.click(screen.getByRole('button', { name: 'Offer' }));
 
-    const dialog = await screen.findByRole('dialog', { name: /hire ada lovelace/i });
-    await user.click(within(dialog).getByRole('button', { name: 'Hire' }));
+    const dialog = await screen.findByRole('dialog', { name: /send offer to ada lovelace/i });
+    await user.click(within(dialog).getByRole('button', { name: 'Send offer' }));
 
-    expect(await screen.findByRole('button', { name: /release payment/i })).toBeInTheDocument();
-    expect(screen.getByText(/funds in escrow/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hire' })).not.toBeInTheDocument();
+    expect(await screen.findByText(/offer sent — waiting for freelancer/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /withdraw offer/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Offer' })).not.toBeInTheDocument();
   });
 
   it('confirms before releasing payment on a hired job', async () => {
@@ -241,9 +254,52 @@ describe('ProposalsPage', () => {
       paymentMock(escrowedPayment),
     ]);
 
+    expect(await screen.findByText(/manage contract/i)).toBeInTheDocument();
+    expect(screen.getByText(/hired freelancer/i)).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: /release payment/i }));
 
     const dialog = await screen.findByRole('dialog', { name: /release payment/i });
     expect(within(dialog).getByText(/marks the job complete/i)).toBeInTheDocument();
+  });
+
+  it('groups non-hired proposals under Other proposals on an in-progress job', async () => {
+    renderProposals([
+      jobMock(makeJob({ status: 'IN_PROGRESS' })),
+      jobBidsMock([
+        makeBid({ status: 'ACCEPTED' }),
+        makeBid({
+          id: 'bid-2',
+          status: 'PENDING',
+          freelancer: makeFreelancer({
+            id: 'freelancer-2',
+            username: 'bob',
+            profile: {
+              fullName: 'Bob',
+              bio: null,
+              skills: [],
+              hourlyRate: null,
+              profileImage: null,
+            },
+          }),
+        }),
+      ]),
+      paymentMock(escrowedPayment),
+    ]);
+
+    expect(await screen.findByRole('button', { name: /release payment/i })).toBeInTheDocument();
+    expect(screen.getByText(/other proposals/i)).toBeInTheDocument();
+    expect(screen.getByText('Not selected')).toBeInTheDocument();
+  });
+
+  it('shows withdraw offer when a proposal is already offered', async () => {
+    renderProposals([
+      jobMock(),
+      jobBidsMock([makeBid({ status: 'OFFERED' })]),
+      paymentMock(null),
+    ]);
+
+    expect(await screen.findByRole('button', { name: /withdraw offer/i })).toBeInTheDocument();
+    expect(screen.getByText(/offer sent — waiting for freelancer/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Offer' })).not.toBeInTheDocument();
   });
 });

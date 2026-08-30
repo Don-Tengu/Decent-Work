@@ -61,6 +61,7 @@ public class Bid {
 
     public enum BidStatus {
         PENDING,
+        OFFERED,
         ACCEPTED,
         REJECTED
     }

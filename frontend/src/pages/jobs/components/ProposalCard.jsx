@@ -9,12 +9,25 @@ import BidStatusBadge from '../../../components/ui/BidStatusBadge.jsx';
 import { greenSolidButtonStyles, subtlePillButtonStyles } from '../../../components/ui/buttonStyles.js';
 import { formatCurrency, formatDeliveryTime } from '../utils.jsx';
 import { formatHourlyRate, formatMemberSince, formatRole, getDisplayName } from '@/utils/user.js';
+import { getPaymentActionFlags } from '../paymentActions.js';
 
 // One proposal row in the client-facing proposals list. The freelancer
 // identity (avatar + name) and the "View proposal details" button both open
-// the slide-out drawer; the contextual Hire / Release action depends on the
-// job + payment state.
-const ProposalCard = ({ bid, currencyCode = 'USD', jobStatus, payment, onOpenFreelancer, onHire, onRelease }) => {
+// the slide-out drawer; Offer / Withdraw / Fund / Release depend on state.
+const ProposalCard = ({
+  bid,
+  currencyCode = 'USD',
+  jobStatus,
+  payment,
+  hasOutstandingOffer = false,
+  emphasis = false,
+  subdued = false,
+  onOpenFreelancer,
+  onOffer,
+  onWithdrawOffer,
+  onFund,
+  onRelease,
+}) => {
   const freelancer = bid.freelancer;
   const name = getDisplayName(freelancer);
   const memberSince = formatMemberSince(freelancer?.createdAt);
@@ -23,15 +36,37 @@ const ProposalCard = ({ bid, currencyCode = 'USD', jobStatus, payment, onOpenFre
   const meta = [formatRole(freelancer?.role), memberSince].filter(Boolean).join(' · ');
 
   const isAccepted = bid.status === 'ACCEPTED';
-  const canHire = jobStatus === 'OPEN' && bid.status === 'PENDING';
-  const isEscrowed = isAccepted && payment?.status === 'ESCROWED';
-  const isPaid = isAccepted && (payment?.status === 'RELEASED' || jobStatus === 'COMPLETED');
-  const paymentNote = isPaid ? 'Paid · completed' : isEscrowed ? 'Funds in escrow' : null;
+  const { canOffer, canWithdrawOffer, canFund, canRelease, paymentNote } = getPaymentActionFlags({
+    bid,
+    jobStatus,
+    payment,
+    hasOutstandingOffer,
+  });
+
+  // After hire, non-winners should read as not selected even if the row was
+  // never flipped to REJECTED (older hires before competing-bid reject).
+  const displayStatus =
+    bid.status === 'PENDING' && (jobStatus === 'IN_PROGRESS' || jobStatus === 'COMPLETED')
+      ? 'REJECTED'
+      : bid.status;
 
   const openFreelancer = () => onOpenFreelancer?.(bid);
 
   return (
-    <GlassPanel variant="subtle" borderRadius="22px" p={{ base: 5, md: 6 }}>
+    <GlassPanel
+      variant="subtle"
+      borderRadius="22px"
+      p={{ base: 5, md: 6 }}
+      opacity={subdued ? 0.78 : 1}
+      borderColor={
+        emphasis
+          ? 'rgba(34, 211, 238, 0.35)'
+          : subdued
+            ? 'rgba(148, 163, 184, 0.12)'
+            : undefined
+      }
+      boxShadow={emphasis ? '0 18px 48px rgba(6, 182, 212, 0.12)' : undefined}
+    >
       <Grid
         templateColumns={{ base: '1fr', lg: 'minmax(0, 1fr) 200px' }}
         gap={{ base: 5, lg: 8 }}
@@ -78,7 +113,7 @@ const ProposalCard = ({ bid, currencyCode = 'USD', jobStatus, payment, onOpenFre
               css={{
                 display: '-webkit-box',
                 WebkitBoxOrient: 'vertical',
-                WebkitLineClamp: 3,
+                WebkitLineClamp: subdued ? 2 : 3,
                 overflow: 'hidden',
               }}
             >
@@ -86,21 +121,31 @@ const ProposalCard = ({ bid, currencyCode = 'USD', jobStatus, payment, onOpenFre
             </Text>
           </Box>
 
-          <SkillTags skills={freelancer?.profile?.skills} max={6} />
+          {!subdued ? <SkillTags skills={freelancer?.profile?.skills} max={6} /> : null}
 
           <HStack gap={3} flexWrap="wrap" pt={1} align="center">
-            {canHire ? (
-              <Button type="button" onClick={() => onHire?.(bid)} px={5} {...greenSolidButtonStyles}>
-                Hire
+            {canOffer ? (
+              <Button type="button" onClick={() => onOffer?.(bid)} px={5} {...greenSolidButtonStyles}>
+                Offer
               </Button>
             ) : null}
-            {isEscrowed ? (
+            {canWithdrawOffer ? (
+              <Button type="button" onClick={() => onWithdrawOffer?.(bid)} px={5} {...subtlePillButtonStyles}>
+                Withdraw offer
+              </Button>
+            ) : null}
+            {canFund ? (
+              <Button type="button" onClick={() => onFund?.(bid)} px={5} {...greenSolidButtonStyles}>
+                Fund escrow
+              </Button>
+            ) : null}
+            {canRelease ? (
               <Button type="button" onClick={() => onRelease?.(bid)} px={5} {...greenSolidButtonStyles}>
                 Release payment
               </Button>
             ) : null}
             <Button type="button" onClick={openFreelancer} size="sm" px={4} {...subtlePillButtonStyles}>
-              View proposal details
+              {isAccepted ? 'View contract details' : 'View proposal details'}
             </Button>
             {attachmentCount > 0 ? (
               <HStack gap={1.5} color="rgba(226, 232, 240, 0.56)" fontSize="sm">
@@ -126,7 +171,7 @@ const ProposalCard = ({ bid, currencyCode = 'USD', jobStatus, payment, onOpenFre
               {hourlyRate}
             </Text>
           ) : null}
-          <BidStatusBadge status={bid.status} />
+          <BidStatusBadge status={displayStatus} />
           {paymentNote ? (
             <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" fontWeight="medium">
               {paymentNote}

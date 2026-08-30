@@ -1,9 +1,10 @@
 import React from 'react';
 import { Badge } from '@chakra-ui/react';
 
-// Client-facing decision label for a proposal. PENDING shows nothing (the Hire
-// action already implies it); ACCEPTED/REJECTED surface the outcome.
+// Client-facing decision label for a proposal. PENDING shows nothing (the Offer
+// action already implies it); OFFERED/ACCEPTED/REJECTED surface the outcome.
 const STATUS_CONFIG = {
+  OFFERED: { label: 'Offer sent', colorPalette: 'cyan' },
   ACCEPTED: { label: 'Hired', colorPalette: 'green' },
   REJECTED: { label: 'Not selected', colorPalette: 'gray' },
 };

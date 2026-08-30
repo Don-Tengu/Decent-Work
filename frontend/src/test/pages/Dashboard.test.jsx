@@ -5,8 +5,25 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CANCEL_JOB, GET_MY_BIDS, GET_MY_JOBS, GET_MY_SAVED_JOBS } from '@/graphql/queries.js';
+import {
+  CANCEL_JOB,
+  CONNECT_WALLET,
+  GET_MY_BIDS,
+  GET_MY_JOBS,
+  GET_MY_NOTIFICATIONS,
+  GET_MY_SAVED_JOBS,
+  UNREAD_NOTIFICATION_COUNT,
+} from '@/graphql/queries.js';
 import Dashboard from '@/pages/Dashboard.jsx';
+
+vi.mock('@/utils/web3', () => ({
+  connectWallet: (...args) => connectWalletMock(...args),
+  subscribeToWalletAccounts: () => () => {},
+  addressesEqual: (a, b) =>
+    Boolean(a) &&
+    Boolean(b) &&
+    String(a).trim().toLowerCase() === String(b).trim().toLowerCase(),
+}));
 
 const navigateMock = vi.hoisted(() => vi.fn());
 const authState = vi.hoisted(() => ({
@@ -15,9 +32,19 @@ const authState = vi.hoisted(() => ({
     email: 'jean@example.com',
     username: 'Jean',
     role: 'CLIENT',
+    walletAddress: null,
   },
   logout: vi.fn(),
+  updateUser: vi.fn((partial) => {
+    authState.user = { ...authState.user, ...partial };
+  }),
 }));
+
+const connectWalletMock = vi.hoisted(() =>
+  vi.fn(async () => ({
+    address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  }))
+);
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal();
@@ -92,10 +119,12 @@ const draftJob = {
   publishedAt: null,
 };
 
+const MY_JOBS_STATUSES = ['DRAFT', 'OPEN', 'IN_PROGRESS', 'COMPLETED'];
+
 const myJobsMock = (jobs) => ({
   request: {
     query: GET_MY_JOBS,
-    variables: { statuses: ['DRAFT', 'OPEN'] },
+    variables: { statuses: MY_JOBS_STATUSES },
   },
   result: {
     data: {
@@ -103,6 +132,35 @@ const myJobsMock = (jobs) => ({
     },
   },
 });
+
+const inProgressJob = {
+  ...postedJob,
+  id: 'job-progress',
+  title: 'Wallet Integration Sprint',
+  status: 'IN_PROGRESS',
+  bids: [
+    {
+      __typename: 'Bid',
+      id: 'bid-accepted',
+      status: 'ACCEPTED',
+    },
+  ],
+};
+
+const completedJob = {
+  ...postedJob,
+  id: 'job-completed',
+  title: 'Tokenomics Review',
+  status: 'COMPLETED',
+  description: 'Delivered the tokenomics memo and closed payment.',
+  bids: [
+    {
+      __typename: 'Bid',
+      id: 'bid-done',
+      status: 'ACCEPTED',
+    },
+  ],
+};
 
 const myBidsMock = (bids = []) => ({
   request: {
@@ -126,10 +184,21 @@ const mySavedJobsMock = (jobs = []) => ({
   },
 });
 
+const notificationMocks = [
+  {
+    request: { query: UNREAD_NOTIFICATION_COUNT },
+    result: { data: { unreadNotificationCount: 0 } },
+  },
+  {
+    request: { query: GET_MY_NOTIFICATIONS, variables: { limit: 12 } },
+    result: { data: { myNotifications: [] } },
+  },
+];
+
 const renderDashboard = (mocks) =>
   render(
     <ChakraProvider value={defaultSystem}>
-      <MockedProvider mocks={mocks}>
+      <MockedProvider mocks={[...notificationMocks, ...mocks]}>
         <MemoryRouter>
           <Dashboard />
         </MemoryRouter>
@@ -141,16 +210,104 @@ afterEach(() => {
   cleanup();
   navigateMock.mockReset();
   authState.logout.mockReset();
+  authState.updateUser.mockClear();
+  connectWalletMock.mockClear();
   authState.user = {
     id: 'client-1',
     email: 'jean@example.com',
     username: 'Jean',
     role: 'CLIENT',
+    walletAddress: null,
   };
   vi.restoreAllMocks();
 });
 
 describe('Client Dashboard', () => {
+  it('shows wallet connect CTA when the client has no wallet', async () => {
+    renderDashboard([myJobsMock([postedJob])]);
+
+    expect(await screen.findByText(/wallet needed for escrow/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /connect wallet/i }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/fund and release on-chain escrow/i)).toBeInTheDocument();
+  });
+
+  it('connects a client wallet via MetaMask and persists the address', async () => {
+    const user = userEvent.setup();
+    const connectMock = {
+      request: {
+        query: CONNECT_WALLET,
+        variables: {
+          walletAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        },
+      },
+      result: {
+        data: {
+          connectWallet: {
+            __typename: 'User',
+            id: 'client-1',
+            walletAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          },
+        },
+      },
+    };
+
+    renderDashboard([myJobsMock([postedJob]), connectMock]);
+
+    const connectButtons = await screen.findAllByRole('button', { name: /connect wallet/i });
+    await user.click(connectButtons[0]);
+
+    await waitFor(() => {
+      expect(connectWalletMock).toHaveBeenCalledWith({ forcePermissionPrompt: false });
+      expect(authState.updateUser).toHaveBeenCalledWith({
+        walletAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      });
+    });
+
+    expect(await screen.findByText(/wallet connected/i)).toBeInTheDocument();
+  });
+
+  it('forces a MetaMask permission prompt when switching an already linked wallet', async () => {
+    const user = userEvent.setup();
+    authState.user = {
+      ...authState.user,
+      walletAddress: '0x7E66aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaD672',
+    };
+    connectWalletMock.mockResolvedValueOnce({
+      address: '0xbd2a9bbbbbbbbbbbbbbbbbbbbbbbbbbbbb70901',
+    });
+
+    const connectMock = {
+      request: {
+        query: CONNECT_WALLET,
+        variables: {
+          walletAddress: '0xbd2a9bbbbbbbbbbbbbbbbbbbbbbbbbbbbb70901',
+        },
+      },
+      result: {
+        data: {
+          connectWallet: {
+            __typename: 'User',
+            id: 'client-1',
+            walletAddress: '0xbd2a9bbbbbbbbbbbbbbbbbbbbbbbbbbbbb70901',
+          },
+        },
+      },
+    };
+
+    renderDashboard([myJobsMock([postedJob]), connectMock]);
+
+    await user.click(await screen.findByRole('button', { name: /switch wallet/i }));
+
+    await waitFor(() => {
+      expect(connectWalletMock).toHaveBeenCalledWith({ forcePermissionPrompt: true });
+      expect(authState.updateUser).toHaveBeenCalledWith({
+        walletAddress: '0xbd2a9bbbbbbbbbbbbbbbbbbbbbbbbbbbbb70901',
+      });
+    });
+
+    expect(await screen.findByText(/wallet switched/i)).toBeInTheDocument();
+  });
+
   it('renders posted and draft jobs with client actions', async () => {
     const user = userEvent.setup();
 
@@ -275,6 +432,45 @@ describe('Client Dashboard', () => {
     await user.click(await screen.findByRole('button', { name: /view proposals/i }));
 
     expect(navigateMock).toHaveBeenCalledWith('/jobs/job-open/proposals', {
+      state: { from: '/dashboard' },
+    });
+  });
+
+  it('keeps in-progress jobs on the dashboard with a manage-contract CTA', async () => {
+    const user = userEvent.setup();
+
+    renderDashboard([myJobsMock([inProgressJob, postedJob])]);
+
+    expect(await screen.findByText('Wallet Integration Sprint')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^in progress$/i })).toBeInTheDocument();
+    expect(screen.getByText(/funds are in escrow/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /manage contract/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /manage contract/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/jobs/job-progress/proposals', {
+      state: { from: '/dashboard' },
+    });
+
+    await user.click(screen.getByRole('button', { name: /actions for wallet integration sprint/i }));
+    expect(await screen.findByRole('menuitem', { name: /manage contract/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /remove posting/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /edit posting/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps completed jobs on the dashboard under a completed section', async () => {
+    const user = userEvent.setup();
+
+    renderDashboard([myJobsMock([completedJob])]);
+
+    expect(await screen.findByText('Tokenomics Review')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^completed$/i })).toBeInTheDocument();
+    expect(screen.getByText(/completed\. delivered the tokenomics memo/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view details/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /view details/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/jobs/job-completed/proposals', {
       state: { from: '/dashboard' },
     });
   });

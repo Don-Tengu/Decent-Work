@@ -1,13 +1,25 @@
 import React from 'react';
-import { useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { Link } from 'react-router-dom';
 import { Badge, Box, Button, HStack, Heading, SimpleGrid, Text, VStack } from '@chakra-ui/react';
 import { ArrowLeft, BriefcaseBusiness, Clock3, SendHorizontal } from 'lucide-react';
-import { GET_MY_BIDS } from '../graphql/queries';
+import {
+  ACCEPT_OFFER,
+  DECLINE_OFFER,
+  GET_MY_BIDS,
+  GET_MY_NOTIFICATIONS,
+  UNREAD_NOTIFICATION_COUNT,
+} from '../graphql/queries';
 import GlassPanel from '../components/ui/GlassPanel.jsx';
 import PageShell from '../components/ui/PageShell.jsx';
 import AttachmentDownloadList from '../components/ui/AttachmentDownloadList.jsx';
-import { quietPillButtonStyles, subtlePillButtonStyles } from '../components/ui/buttonStyles.js';
+import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
+import NotificationBell from '../components/ui/NotificationBell.jsx';
+import {
+  greenSolidButtonStyles,
+  quietPillButtonStyles,
+  subtlePillButtonStyles,
+} from '../components/ui/buttonStyles.js';
 
 const pageAccents = [
   {
@@ -27,6 +39,13 @@ const pageAccents = [
     filter: 'blur(32px)',
   },
 ];
+
+const BID_SORT_RANK = {
+  OFFERED: 0,
+  ACCEPTED: 1,
+  PENDING: 2,
+  REJECTED: 3,
+};
 
 const formatMoney = (amount, currency = 'USD') =>
   new Intl.NumberFormat('en-US', {
@@ -55,102 +74,229 @@ const formatJobBudget = (job) => {
 };
 
 const getStatusPalette = (status) => {
+  if (status === 'OFFERED') {
+    return 'cyan';
+  }
   if (status === 'ACCEPTED') {
     return 'green';
   }
-
   if (status === 'REJECTED') {
     return 'red';
   }
-
   return 'yellow';
 };
 
-const MyBidCard = ({ bid }) => (
-  <GlassPanel as="article" variant="subtle" borderRadius="22px" p={{ base: 5, md: 6 }}>
-    <VStack align="stretch" gap={5}>
-      <HStack justify="space-between" align="start" gap={4}>
-        <Box minW="0">
-          <Heading as="h2" size="md" color="white" letterSpacing="0" lineHeight="1.35">
-            {bid.job.title}
-          </Heading>
-          <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" mt={1}>
-            Job budget: {formatJobBudget(bid.job)}
-          </Text>
-          {bid.status === 'ACCEPTED' && bid.job.status ? (
-            <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" fontWeight="medium" mt={1}>
-              {bid.job.status === 'COMPLETED' ? 'Completed · paid' : 'Hired · in progress'}
-            </Text>
-          ) : null}
-        </Box>
-        <Badge colorPalette={getStatusPalette(bid.status)} borderRadius="full" px={3} py={1} flex="0 0 auto">
-          {bid.status}
-        </Badge>
-      </HStack>
+const getStatusLabel = (status) => {
+  if (status === 'OFFERED') {
+    return 'Offer received';
+  }
+  if (status === 'ACCEPTED') {
+    return 'Hired';
+  }
+  if (status === 'REJECTED') {
+    return 'Not selected';
+  }
+  return 'Pending';
+};
 
-      <SimpleGrid columns={{ base: 1, sm: 2 }} gap={4}>
-        <HStack gap={3} align="start">
-          <Box color="cyan.200" mt={0.5}>
-            <BriefcaseBusiness size={18} />
-          </Box>
-          <Box>
-            <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
-              Your bid
+const graphqlErrorMessage = (err) =>
+  err?.graphQLErrors?.[0]?.message || err?.message || 'Something went wrong';
+
+const MyBidCard = ({ bid, onAccept, onDecline }) => {
+  const isOffered = bid.status === 'OFFERED';
+  const isAccepted = bid.status === 'ACCEPTED';
+
+  return (
+    <GlassPanel
+      as="article"
+      variant="subtle"
+      borderRadius="22px"
+      p={{ base: 5, md: 6 }}
+      borderColor={isOffered ? 'rgba(34, 211, 238, 0.35)' : undefined}
+      boxShadow={isOffered ? '0 18px 48px rgba(6, 182, 212, 0.12)' : undefined}
+    >
+      <VStack align="stretch" gap={5}>
+        <HStack justify="space-between" align="start" gap={4}>
+          <Box minW="0">
+            <Heading as="h2" size="md" color="white" letterSpacing="0" lineHeight="1.35">
+              {bid.job.title}
+            </Heading>
+            <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" mt={1}>
+              Job budget: {formatJobBudget(bid.job)}
             </Text>
-            <Text color="white" fontWeight="semibold">
-              {formatMoney(bid.amount, bid.job.currencyCode || 'USD')}
-            </Text>
+            {isOffered ? (
+              <Text color="rgba(125, 211, 252, 0.95)" fontSize="sm" fontWeight="medium" mt={1}>
+                The client sent you an offer. Accept to start the contract, or decline to stay in the pool.
+              </Text>
+            ) : null}
+            {isAccepted && bid.job.status ? (
+              <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" fontWeight="medium" mt={1}>
+                {bid.job.status === 'COMPLETED' ? 'Completed · paid' : 'Active contract · in progress'}
+              </Text>
+            ) : null}
           </Box>
+          <Badge colorPalette={getStatusPalette(bid.status)} borderRadius="full" px={3} py={1} flex="0 0 auto">
+            {getStatusLabel(bid.status)}
+          </Badge>
         </HStack>
-        <HStack gap={3} align="start">
-          <Box color="cyan.200" mt={0.5}>
-            <Clock3 size={18} />
-          </Box>
-          <Box>
-            <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
-              Delivery
-            </Text>
-            <Text color="white" fontWeight="semibold">
-              {bid.deliveryTime} {bid.deliveryTime === 1 ? 'day' : 'days'}
-            </Text>
-          </Box>
-        </HStack>
-      </SimpleGrid>
 
-      <Box>
-        <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
-          Proposal
-        </Text>
-        <Text color="rgba(226, 232, 240, 0.76)" lineHeight="1.75" whiteSpace="pre-line">
-          {bid.proposal}
-        </Text>
-      </Box>
+        <SimpleGrid columns={{ base: 1, sm: 2 }} gap={4}>
+          <HStack gap={3} align="start">
+            <Box color="cyan.200" mt={0.5}>
+              <BriefcaseBusiness size={18} />
+            </Box>
+            <Box>
+              <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
+                Your bid
+              </Text>
+              <Text color="white" fontWeight="semibold">
+                {formatMoney(bid.amount, bid.job.currencyCode || 'USD')}
+              </Text>
+            </Box>
+          </HStack>
+          <HStack gap={3} align="start">
+            <Box color="cyan.200" mt={0.5}>
+              <Clock3 size={18} />
+            </Box>
+            <Box>
+              <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
+                Delivery
+              </Text>
+              <Text color="white" fontWeight="semibold">
+                {bid.deliveryTime} {bid.deliveryTime === 1 ? 'day' : 'days'}
+              </Text>
+            </Box>
+          </HStack>
+        </SimpleGrid>
 
-      {bid.relevantExperience ? (
         <Box>
           <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
-            Recent experience
+            Proposal
           </Text>
           <Text color="rgba(226, 232, 240, 0.76)" lineHeight="1.75" whiteSpace="pre-line">
-            {bid.relevantExperience}
+            {bid.proposal}
           </Text>
         </Box>
-      ) : null}
 
-      <AttachmentDownloadList attachments={bid.attachments ?? []} label="Attachments" />
+        {bid.relevantExperience ? (
+          <Box>
+            <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
+              Recent experience
+            </Text>
+            <Text color="rgba(226, 232, 240, 0.76)" lineHeight="1.75" whiteSpace="pre-line">
+              {bid.relevantExperience}
+            </Text>
+          </Box>
+        ) : null}
 
-      <Button as={Link} to={`/jobs/${bid.job.id}`} alignSelf="start" px={5} {...subtlePillButtonStyles}>
-        View job
-      </Button>
-    </VStack>
-  </GlassPanel>
-);
+        <AttachmentDownloadList attachments={bid.attachments ?? []} label="Attachments" />
+
+        <HStack gap={3} flexWrap="wrap">
+          {isOffered ? (
+            <>
+              <Button type="button" onClick={() => onAccept?.(bid)} px={5} {...greenSolidButtonStyles}>
+                Accept offer
+              </Button>
+              <Button type="button" onClick={() => onDecline?.(bid)} px={5} {...subtlePillButtonStyles}>
+                Decline
+              </Button>
+            </>
+          ) : null}
+          <Button as={Link} to={`/jobs/${bid.job.id}`} alignSelf="start" px={5} {...subtlePillButtonStyles}>
+            View job
+          </Button>
+        </HStack>
+      </VStack>
+    </GlassPanel>
+  );
+};
 
 const MyBids = () => {
   const { data, loading, error } = useQuery(GET_MY_BIDS, {
     fetchPolicy: 'cache-and-network',
   });
-  const bids = data?.myBids ?? [];
+  const [pendingAction, setPendingAction] = React.useState(null);
+  const [actionError, setActionError] = React.useState(null);
+  const [actionLoading, setActionLoading] = React.useState(false);
+
+  const refetchQueries = [
+    { query: GET_MY_BIDS },
+    { query: GET_MY_NOTIFICATIONS, variables: { limit: 12 } },
+    { query: UNREAD_NOTIFICATION_COUNT },
+  ];
+
+  const [acceptOffer] = useMutation(ACCEPT_OFFER, {
+    refetchQueries,
+    awaitRefetchQueries: true,
+  });
+  const [declineOffer] = useMutation(DECLINE_OFFER, {
+    refetchQueries,
+    awaitRefetchQueries: true,
+  });
+
+  const bids = React.useMemo(() => {
+    const list = data?.myBids ?? [];
+    return [...list].sort((a, b) => {
+      const rankA = BID_SORT_RANK[a.status] ?? 9;
+      const rankB = BID_SORT_RANK[b.status] ?? 9;
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      return 0;
+    });
+  }, [data?.myBids]);
+
+  const offeredCount = bids.filter((bid) => bid.status === 'OFFERED').length;
+
+  const openAccept = (bid) => {
+    setActionError(null);
+    setPendingAction({ type: 'accept', bid });
+  };
+
+  const openDecline = (bid) => {
+    setActionError(null);
+    setPendingAction({ type: 'decline', bid });
+  };
+
+  const closeConfirm = () => {
+    if (!actionLoading) {
+      setPendingAction(null);
+      setActionError(null);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!pendingAction) {
+      return;
+    }
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      if (pendingAction.type === 'accept') {
+        await acceptOffer({ variables: { bidId: pendingAction.bid.id } });
+      } else {
+        await declineOffer({ variables: { bidId: pendingAction.bid.id } });
+      }
+      setPendingAction(null);
+    } catch (err) {
+      setActionError({ message: graphqlErrorMessage(err) });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const dialogTitle =
+    pendingAction?.type === 'accept'
+      ? 'Accept this offer?'
+      : pendingAction?.type === 'decline'
+        ? 'Decline this offer?'
+        : '';
+  const dialogDescription =
+    pendingAction?.type === 'accept'
+      ? `Accepting starts the contract for "${pendingAction.bid.job.title}". Competing proposals will be closed.`
+      : pendingAction?.type === 'decline'
+        ? `Your proposal for "${pendingAction.bid.job.title}" returns to pending so the client can offer someone else.`
+        : '';
 
   return (
     <PageShell accents={pageAccents} maxW="1120px" py={{ base: 5, md: 8 }} px={{ base: 4, lg: 8 }}>
@@ -160,10 +306,13 @@ const MyBids = () => {
             <ArrowLeft size={18} />
             Dashboard
           </Button>
-          <Button as={Link} to="/jobs" px={6} {...subtlePillButtonStyles}>
-            <SendHorizontal size={17} />
-            Find jobs
-          </Button>
+          <HStack gap={2}>
+            <NotificationBell />
+            <Button as={Link} to="/jobs" px={6} {...subtlePillButtonStyles}>
+              <SendHorizontal size={17} />
+              Find jobs
+            </Button>
+          </HStack>
         </HStack>
 
         <GlassPanel variant="solid" borderRadius="28px" p={{ base: 5, md: 8 }}>
@@ -172,8 +321,14 @@ const MyBids = () => {
               My proposals
             </Heading>
             <Text color="rgba(226, 232, 240, 0.64)">
-              Track proposals you have sent. 0 connects are charged during the MVP.
+              Track proposals, respond to offers, and open active contracts here. Marketplace search only lists open jobs —
+              use this page after you are offered or hired.
             </Text>
+            {offeredCount > 0 ? (
+              <Text color="rgba(125, 211, 252, 0.95)" fontWeight="semibold" mt={1}>
+                {offeredCount} {offeredCount === 1 ? 'offer needs' : 'offers need'} your response
+              </Text>
+            ) : null}
           </VStack>
         </GlassPanel>
 
@@ -209,11 +364,23 @@ const MyBids = () => {
         {bids.length ? (
           <VStack align="stretch" gap={4}>
             {bids.map((bid) => (
-              <MyBidCard key={bid.id} bid={bid} />
+              <MyBidCard key={bid.id} bid={bid} onAccept={openAccept} onDecline={openDecline} />
             ))}
           </VStack>
         ) : null}
       </VStack>
+
+      <ConfirmDialog
+        open={!!pendingAction}
+        title={dialogTitle}
+        description={dialogDescription}
+        confirmLabel={pendingAction?.type === 'decline' ? 'Decline offer' : 'Accept offer'}
+        colorPalette={pendingAction?.type === 'decline' ? 'red' : 'green'}
+        loading={actionLoading}
+        error={actionError}
+        onConfirm={handleConfirm}
+        onClose={closeConfirm}
+      />
     </PageShell>
   );
 };

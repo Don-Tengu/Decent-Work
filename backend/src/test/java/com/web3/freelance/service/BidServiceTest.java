@@ -2,6 +2,7 @@ package com.web3.freelance.service;
 
 import com.web3.freelance.model.Bid;
 import com.web3.freelance.model.Job;
+import com.web3.freelance.model.Notification;
 import com.web3.freelance.model.User;
 import com.web3.freelance.repository.BidRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,10 +13,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,6 +35,9 @@ class BidServiceTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private NotificationService notificationService;
+
     private BidService bidService;
     private User client;
     private User freelancer;
@@ -39,7 +45,7 @@ class BidServiceTest {
 
     @BeforeEach
     void setUp() {
-        bidService = new BidService(bidRepository, jobService, userService);
+        bidService = new BidService(bidRepository, jobService, userService, notificationService);
         client = User.builder()
                 .id(1L)
                 .email("client@example.com")
@@ -211,6 +217,96 @@ class BidServiceTest {
         )).hasMessageContaining("at least 50 characters");
 
         verify(bidRepository, never()).save(any());
+    }
+
+    @Test
+    void offerBidSetsOfferedWithoutRejectingOthers() {
+        Bid bid = pendingBid(50L);
+        when(bidRepository.findById(50L)).thenReturn(Optional.of(bid));
+        when(bidRepository.findByJobAndStatus(job, Bid.BidStatus.OFFERED)).thenReturn(List.of());
+        when(bidRepository.save(any(Bid.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Bid offered = bidService.offerBid(50L, 1L);
+
+        assertThat(offered.getStatus()).isEqualTo(Bid.BidStatus.OFFERED);
+        assertThat(job.getStatus()).isEqualTo(Job.JobStatus.OPEN);
+        verify(notificationService).create(
+                eq(freelancer),
+                eq(Notification.NotificationType.OFFER_RECEIVED),
+                any(),
+                any(),
+                eq("/my-bids"),
+                eq(10L),
+                eq(50L)
+        );
+    }
+
+    @Test
+    void offerBidBlocksWhenOutstandingOfferExists() {
+        Bid bid = pendingBid(50L);
+        Bid existingOffer = pendingBid(51L);
+        existingOffer.setStatus(Bid.BidStatus.OFFERED);
+        when(bidRepository.findById(50L)).thenReturn(Optional.of(bid));
+        when(bidRepository.findByJobAndStatus(job, Bid.BidStatus.OFFERED)).thenReturn(List.of(existingOffer));
+
+        assertThatThrownBy(() -> bidService.offerBid(50L, 1L))
+                .hasMessageContaining("outstanding offer");
+
+        verify(bidRepository, never()).save(any());
+    }
+
+    @Test
+    void declineOfferReturnsBidToPending() {
+        Bid bid = pendingBid(50L);
+        bid.setStatus(Bid.BidStatus.OFFERED);
+        when(bidRepository.findById(50L)).thenReturn(Optional.of(bid));
+        when(bidRepository.save(any(Bid.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Bid declined = bidService.declineOffer(50L, 2L);
+
+        assertThat(declined.getStatus()).isEqualTo(Bid.BidStatus.PENDING);
+        verify(notificationService).create(
+                eq(client),
+                eq(Notification.NotificationType.OFFER_DECLINED),
+                any(),
+                any(),
+                eq("/jobs/10/proposals"),
+                eq(10L),
+                eq(50L)
+        );
+    }
+
+    @Test
+    void withdrawOfferReturnsBidToPending() {
+        Bid bid = pendingBid(50L);
+        bid.setStatus(Bid.BidStatus.OFFERED);
+        when(bidRepository.findById(50L)).thenReturn(Optional.of(bid));
+        when(bidRepository.save(any(Bid.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Bid withdrawn = bidService.withdrawOffer(50L, 1L);
+
+        assertThat(withdrawn.getStatus()).isEqualTo(Bid.BidStatus.PENDING);
+        verify(notificationService).create(
+                eq(freelancer),
+                eq(Notification.NotificationType.OFFER_WITHDRAWN),
+                any(),
+                any(),
+                eq("/my-bids"),
+                eq(10L),
+                eq(50L)
+        );
+    }
+
+    private Bid pendingBid(Long id) {
+        return Bid.builder()
+                .id(id)
+                .amount(BigDecimal.valueOf(1200))
+                .proposal(validProposal())
+                .deliveryTime(7)
+                .status(Bid.BidStatus.PENDING)
+                .freelancer(freelancer)
+                .job(job)
+                .build();
     }
 
     private BidService.PlaceBidRequest validRequest() {

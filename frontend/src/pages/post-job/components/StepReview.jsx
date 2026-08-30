@@ -14,7 +14,6 @@ import {
 } from '@chakra-ui/react';
 import {
   AlertCircle,
-  Clock3,
   Edit3,
   FileText,
   Tag,
@@ -708,6 +707,14 @@ const StepReview = ({
     setBudgetDialogError('');
   };
 
+  const handlePaymentModelChange = (value) => {
+    setBudgetDraft((currentDraft) => ({
+      ...currentDraft,
+      paymentModel: value,
+      currencyCode: value === 'ON_CHAIN_ESCROW' ? 'ETH' : currentDraft.currencyCode || 'USD',
+    }));
+  };
+
   const handleBudgetAmountChange = (fieldName, value) => {
     setBudgetDraft((currentDraft) => {
       const nextBudgetType = fieldName === 'fixedBudget' ? 'FIXED' : 'HOURLY';
@@ -1007,15 +1014,9 @@ const StepReview = ({
         size="lg"
       >
         <VStack align="stretch" gap={5}>
-          <HStack color="rgba(226, 232, 240, 0.62)" gap={3} flexWrap="wrap">
-            <HStack gap={2}>
-              <Clock3 size={18} />
-              <Text fontSize="sm">Hourly rate</Text>
-            </HStack>
-            <HStack gap={2}>
-              <Tag size={18} />
-              <Text fontSize="sm">Fixed price</Text>
-            </HStack>
+          <HStack color="rgba(226, 232, 240, 0.62)" gap={2}>
+            <Tag size={18} />
+            <Text fontSize="sm">Fixed price (MVP)</Text>
           </HStack>
           <StepFour
             draft={budgetDraft}
@@ -1024,6 +1025,7 @@ const StepReview = ({
             onBudgetAmountChange={handleBudgetAmountChange}
             onBudgetAmountBlur={handleBudgetAmountBlur}
             onContinueWithoutBudget={handleContinueWithoutBudget}
+            onPaymentModelChange={handlePaymentModelChange}
           />
         </VStack>
       </ReviewDialog>

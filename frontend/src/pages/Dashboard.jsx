@@ -28,6 +28,7 @@ import {
   Ellipsis,
   FilePenLine,
   Heart,
+  LoaderCircle,
   Megaphone,
   Pencil,
   Plus,
@@ -35,13 +36,17 @@ import {
   SendHorizontal,
   ShieldCheck,
   SlidersHorizontal,
-  Wallet,
 } from 'lucide-react';
 import GlassPanel from '../components/ui/GlassPanel';
 import PageShell from '../components/ui/PageShell';
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
+import NotificationBell from '../components/ui/NotificationBell.jsx';
 import { pageAccents } from '@/common.js';
-import { greenPillButtonStyles, subtlePillButtonStyles, yellowPillButtonStyles } from '../components/ui/buttonStyles.js';
+import {
+  greenPillButtonStyles,
+  subtlePillButtonStyles,
+  yellowPillButtonStyles,
+} from '../components/ui/buttonStyles.js';
 import {
   CANCEL_JOB,
   CONNECT_WALLET,
@@ -52,11 +57,103 @@ import {
   UNSAVE_JOB,
 } from '../graphql/queries';
 import { useAuth } from '../context/AuthContext';
-import { connectWallet } from '../utils/web3';
+import {
+  addressesEqual,
+  connectWallet,
+  subscribeToWalletAccounts,
+} from '../utils/web3';
 import JobResultCard from './jobs/components/JobResultCard.jsx';
+import WalletConnectionCard from '../components/ui/WalletConnectionCard.jsx';
+import { WEB3_CONFIG } from '../config/web3.js';
 
+// All client-visible lifecycle stages except CANCELLED (soft-deleted / removed).
+const MY_JOBS_VARIABLES = {
+  statuses: ['DRAFT', 'OPEN', 'IN_PROGRESS', 'COMPLETED'],
+};
 
-const MY_JOBS_VARIABLES = { statuses: ['DRAFT', 'OPEN'] };
+const JOB_STATUS_META = {
+  DRAFT: {
+    label: 'Draft job post',
+    shortLabel: 'Draft',
+    colorPalette: 'yellow',
+    icon: FilePenLine,
+    iconBg: 'rgba(250, 204, 21, 0.14)',
+    iconColor: 'yellow.200',
+    hoverBorder: 'rgba(250, 204, 21, 0.28)',
+  },
+  OPEN: {
+    label: 'Open job post',
+    shortLabel: 'Open',
+    colorPalette: 'green',
+    icon: BriefcaseBusiness,
+    iconBg: 'rgba(34, 197, 94, 0.14)',
+    iconColor: 'green.200',
+    hoverBorder: 'rgba(74, 222, 128, 0.28)',
+  },
+  IN_PROGRESS: {
+    label: 'In progress',
+    shortLabel: 'In progress',
+    colorPalette: 'cyan',
+    icon: LoaderCircle,
+    iconBg: 'rgba(6, 182, 212, 0.14)',
+    iconColor: 'cyan.200',
+    hoverBorder: 'rgba(34, 211, 238, 0.32)',
+  },
+  COMPLETED: {
+    label: 'Completed',
+    shortLabel: 'Completed',
+    colorPalette: 'gray',
+    icon: BadgeCheck,
+    iconBg: 'rgba(148, 163, 184, 0.14)',
+    iconColor: 'gray.200',
+    hoverBorder: 'rgba(148, 163, 184, 0.28)',
+  },
+};
+
+// Dashboard sections — order is intentional: active contracts first, then hiring, drafts, history.
+const CLIENT_JOB_SECTIONS = [
+  {
+    key: 'IN_PROGRESS',
+    statuses: ['IN_PROGRESS'],
+    title: 'In progress',
+    description: 'Active contracts. Release payment when the work is complete.',
+    showPostCard: false,
+  },
+  {
+    key: 'OPEN',
+    statuses: ['OPEN'],
+    title: 'Open for proposals',
+    description: 'Jobs still accepting freelancers. Review offers and hire when ready.',
+    showPostCard: true,
+  },
+  {
+    key: 'DRAFT',
+    statuses: ['DRAFT'],
+    title: 'Drafts',
+    description: 'Unfinished posts you can continue anytime.',
+    showPostCard: false,
+  },
+  {
+    key: 'COMPLETED',
+    statuses: ['COMPLETED'],
+    title: 'Completed',
+    description: 'Finished jobs and released payments stay here for reference.',
+    showPostCard: false,
+  },
+];
+
+const sortJobsByRecent = (jobs) =>
+  [...jobs].sort((a, b) => {
+    const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
+
+const groupClientJobs = (jobs) =>
+  CLIENT_JOB_SECTIONS.map((section) => ({
+    ...section,
+    jobs: sortJobsByRecent(jobs.filter((job) => section.statuses.includes(job.status))),
+  })).filter((section) => section.jobs.length > 0);
 
 const formatDate = (value) => {
   if (!value) {
@@ -120,16 +217,56 @@ const getDraftCardCopy = (job) => {
 
 const getJobCardMessage = (job) => {
   const description = job.description?.trim();
+  const pendingBids = (job.bids ?? []).filter((bid) => bid.status === 'PENDING').length;
 
   if (job.status === 'DRAFT') {
     return getDraftCardCopy(job).message;
   }
 
-  return description || 'Review incoming offers from freelancers for this posted job.';
+  if (job.status === 'IN_PROGRESS') {
+    return 'A freelancer is hired and funds are in escrow. Open the contract to release payment when work is done.';
+  }
+
+  if (job.status === 'COMPLETED') {
+    return description
+      ? `Completed. ${description}`
+      : 'This job is complete and payment has been released.';
+  }
+
+  if (job.status === 'OPEN') {
+    if (pendingBids > 0) {
+      return pendingBids === 1
+        ? '1 proposal waiting for your review.'
+        : `${pendingBids} proposals waiting for your review.`;
+    }
+    return description || 'No proposals yet — freelancers can still find this open posting.';
+  }
+
+  return description || 'Review this job on your dashboard.';
 };
 
-const getJobCardActionLabel = (job) =>
-  job.status === 'DRAFT' ? getDraftCardCopy(job).actionLabel : 'View proposals';
+const getJobCardActionLabel = (job) => {
+  if (job.status === 'DRAFT') {
+    return getDraftCardCopy(job).actionLabel;
+  }
+  if (job.status === 'IN_PROGRESS') {
+    return 'Manage contract';
+  }
+  if (job.status === 'COMPLETED') {
+    return 'View details';
+  }
+  return 'View proposals';
+};
+
+const getJobCardButtonStyles = (job) => {
+  if (job.status === 'DRAFT') {
+    return yellowPillButtonStyles;
+  }
+  if (job.status === 'COMPLETED') {
+    return subtlePillButtonStyles;
+  }
+  return greenPillButtonStyles;
+};
 
 const clientJobCardFlex = {
   base: '0 0 100%',
@@ -424,19 +561,23 @@ const PageState = ({ title, description, tone = 'default' }) => (
   </GlassPanel>
 );
 
-const JobStatusLabel = ({ status }) => (
-  <Badge
-    alignSelf="start"
-    colorPalette={status === 'OPEN' ? 'green' : 'yellow'}
-    variant="subtle"
-    px={3}
-    py={1}
-    borderRadius="full"
-    fontWeight="semibold"
-  >
-    {status === 'OPEN' ? 'Open job post' : 'Draft job post'}
-  </Badge>
-);
+const JobStatusLabel = ({ status }) => {
+  const meta = JOB_STATUS_META[status] ?? JOB_STATUS_META.OPEN;
+
+  return (
+    <Badge
+      alignSelf="start"
+      colorPalette={meta.colorPalette}
+      variant="subtle"
+      px={3}
+      py={1}
+      borderRadius="full"
+      fontWeight="semibold"
+    >
+      {meta.label}
+    </Badge>
+  );
+};
 
 const menuItemStyles = {
   borderRadius: '10px',
@@ -468,76 +609,123 @@ const destructiveMenuItemStyles = {
   },
 };
 
-const JobActionsMenu = ({ job, isDraft, onEditDraft, onEditPosting, onRemove, onViewProposals }) => (
-  <Menu.Root positioning={{ placement: 'bottom-end', gutter: 10 }}>
-    <Menu.Trigger asChild>
-      <IconButton
-        aria-label={`Actions for ${getJobTitle(job)}`}
-        type="button"
-        variant="plain"
-        bg="transparent"
-        color="rgba(226, 232, 240, 0.78)"
-        borderRadius="full"
-        size="sm"
-        _hover={{ bg: 'rgba(14, 116, 144, 0.14)', color: 'cyan.100' }}
-        _active={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
-        _open={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
-        _expanded={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
-        css={{
-          '&[data-state=open], &[aria-expanded=true]': {
-            background: 'transparent',
-            color: 'rgba(226, 232, 240, 0.78)',
-          },
-        }}
-      >
-        <Ellipsis size={20} />
-      </IconButton>
-    </Menu.Trigger>
-    <Portal>
-      <Menu.Positioner>
-        <Menu.Content
-          bg="rgba(9, 16, 30, 0.98)"
-          border="1px solid"
-          borderColor="rgba(148, 163, 184, 0.18)"
-          borderRadius="16px"
-          boxShadow="0 24px 60px rgba(2, 6, 23, 0.46)"
-          minW="210px"
-          p={2}
-          zIndex="popover"
+const JobActionsMenu = ({ job, onEditDraft, onEditPosting, onRemove, onViewProposals }) => {
+  const status = job.status;
+  const isDraft = status === 'DRAFT';
+  const isOpen = status === 'OPEN';
+  const isInProgress = status === 'IN_PROGRESS';
+  const isCompleted = status === 'COMPLETED';
+
+  return (
+    <Menu.Root positioning={{ placement: 'bottom-end', gutter: 10 }}>
+      <Menu.Trigger asChild>
+        <IconButton
+          aria-label={`Actions for ${getJobTitle(job)}`}
+          type="button"
+          variant="plain"
+          bg="transparent"
+          color="rgba(226, 232, 240, 0.78)"
+          borderRadius="full"
+          size="sm"
+          _hover={{ bg: 'rgba(14, 116, 144, 0.14)', color: 'cyan.100' }}
+          _active={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
+          _open={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
+          _expanded={{ bg: 'transparent', color: 'rgba(226, 232, 240, 0.78)' }}
+          css={{
+            '&[data-state=open], &[aria-expanded=true]': {
+              background: 'transparent',
+              color: 'rgba(226, 232, 240, 0.78)',
+            },
+          }}
         >
-          <Menu.Arrow>
-            <Menu.ArrowTip bg="rgba(9, 16, 30, 0.98)" borderColor="rgba(148, 163, 184, 0.18)" />
-          </Menu.Arrow>
-          {isDraft ? (
-            <>
-              <Menu.Item value={`edit-draft-${job.id}`} onClick={() => onEditDraft(job)} {...menuItemStyles}>
-                Edit draft
+          <Ellipsis size={20} />
+        </IconButton>
+      </Menu.Trigger>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content
+            bg="rgba(9, 16, 30, 0.98)"
+            border="1px solid"
+            borderColor="rgba(148, 163, 184, 0.18)"
+            borderRadius="16px"
+            boxShadow="0 24px 60px rgba(2, 6, 23, 0.46)"
+            minW="210px"
+            p={2}
+            zIndex="popover"
+          >
+            <Menu.Arrow>
+              <Menu.ArrowTip bg="rgba(9, 16, 30, 0.98)" borderColor="rgba(148, 163, 184, 0.18)" />
+            </Menu.Arrow>
+            {isDraft ? (
+              <>
+                <Menu.Item value={`edit-draft-${job.id}`} onClick={() => onEditDraft(job)} {...menuItemStyles}>
+                  Edit draft
+                </Menu.Item>
+                <Menu.Item
+                  value={`remove-draft-${job.id}`}
+                  onClick={() => onRemove(job)}
+                  {...destructiveMenuItemStyles}
+                >
+                  Remove draft
+                </Menu.Item>
+              </>
+            ) : null}
+            {isOpen ? (
+              <>
+                <Menu.Item
+                  value={`view-proposals-${job.id}`}
+                  onClick={() => onViewProposals(job)}
+                  {...menuItemStyles}
+                >
+                  View proposals
+                </Menu.Item>
+                <Menu.Item
+                  value={`edit-posting-${job.id}`}
+                  onClick={() => onEditPosting(job)}
+                  {...menuItemStyles}
+                >
+                  Edit posting
+                </Menu.Item>
+                <Menu.Item
+                  value={`remove-posting-${job.id}`}
+                  onClick={() => onRemove(job)}
+                  {...destructiveMenuItemStyles}
+                >
+                  Remove posting
+                </Menu.Item>
+              </>
+            ) : null}
+            {isInProgress ? (
+              <Menu.Item
+                value={`manage-contract-${job.id}`}
+                onClick={() => onViewProposals(job)}
+                {...menuItemStyles}
+              >
+                Manage contract
               </Menu.Item>
-              <Menu.Item value={`remove-draft-${job.id}`} onClick={() => onRemove(job)} {...destructiveMenuItemStyles}>
-                Remove draft
+            ) : null}
+            {isCompleted ? (
+              <Menu.Item
+                value={`view-details-${job.id}`}
+                onClick={() => onViewProposals(job)}
+                {...menuItemStyles}
+              >
+                View details
               </Menu.Item>
-            </>
-          ) : (
-            <>
-              <Menu.Item value={`view-proposals-${job.id}`} onClick={() => onViewProposals(job)} {...menuItemStyles}>
-                View Proposals
-              </Menu.Item>
-              <Menu.Item value={`edit-posting-${job.id}`} onClick={() => onEditPosting(job)} {...menuItemStyles}>
-                Edit Posting
-              </Menu.Item>
-              <Menu.Item value={`remove-posting-${job.id}`} onClick={() => onRemove(job)} {...destructiveMenuItemStyles}>
-                Remove Posting
-              </Menu.Item>
-            </>
-          )}
-        </Menu.Content>
-      </Menu.Positioner>
-    </Portal>
-  </Menu.Root>
-);
+            ) : null}
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
+    </Menu.Root>
+  );
+};
 
 const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewProposals }) => {
   const isDraft = job.status === 'DRAFT';
+  const meta = JOB_STATUS_META[job.status] ?? JOB_STATUS_META.OPEN;
+  const StatusIcon = meta.icon;
+  const actionLabel = getJobCardActionLabel(job);
+  const buttonStyles = getJobCardButtonStyles(job);
 
   return (
     <GlassPanel
@@ -553,7 +741,7 @@ const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewPropos
       transition="all 0.25s ease"
       _hover={{
         transform: 'translateY(-4px)',
-        borderColor: isDraft ? 'rgba(250, 204, 21, 0.28)' : 'rgba(74, 222, 128, 0.28)',
+        borderColor: meta.hoverBorder,
       }}
     >
       <VStack align="stretch" gap={5} h="full">
@@ -564,11 +752,11 @@ const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewPropos
               borderRadius="full"
               display="grid"
               placeItems="center"
-              bg={isDraft ? 'rgba(250, 204, 21, 0.14)' : 'rgba(34, 197, 94, 0.14)'}
-              color={isDraft ? 'yellow.200' : 'green.200'}
+              bg={meta.iconBg}
+              color={meta.iconColor}
               flex="0 0 auto"
             >
-              {isDraft ? <FilePenLine size={22} /> : <BriefcaseBusiness size={22} />}
+              <StatusIcon size={22} />
             </Box>
             <Heading
               as="h3"
@@ -587,7 +775,6 @@ const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewPropos
           </HStack>
           <JobActionsMenu
             job={job}
-            isDraft={isDraft}
             onEditDraft={onEditDraft}
             onEditPosting={onEditPosting}
             onRemove={onRemove}
@@ -625,10 +812,10 @@ const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewPropos
               w="full"
               fontWeight="600"
               h="42px"
-              {...yellowPillButtonStyles}
+              {...buttonStyles}
             >
               <HStack gap={2}>
-                <span>{getJobCardActionLabel(job)}</span>
+                <span>{actionLabel}</span>
               </HStack>
             </Button>
           ) : (
@@ -638,10 +825,10 @@ const ClientJobCard = ({ job, onEditDraft, onEditPosting, onRemove, onViewPropos
               fontWeight="600"
               h="42px"
               onClick={() => onViewProposals(job)}
-              {...greenPillButtonStyles}
+              {...buttonStyles}
             >
               <HStack gap={2}>
-                <span>View proposals</span>
+                <span>{actionLabel}</span>
               </HStack>
             </Button>
           )}
@@ -711,7 +898,15 @@ const JobCarouselArrow = ({ direction, disabled, onClick, ...props }) => {
   );
 };
 
-const ClientJobCarousel = ({ jobs, onEditDraft, onEditPosting, onRemove, onViewProposals }) => {
+const ClientJobCarousel = ({
+  jobs,
+  showPostCard = false,
+  onEditDraft,
+  onEditPosting,
+  onRemove,
+  onViewProposals,
+  ariaLabel = 'Client jobs',
+}) => {
   const railRef = React.useRef(null);
   const [canScrollPrevious, setCanScrollPrevious] = React.useState(false);
   const [canScrollNext, setCanScrollNext] = React.useState(false);
@@ -755,7 +950,7 @@ const ClientJobCarousel = ({ jobs, onEditDraft, onEditPosting, onRemove, onViewP
       resizeObserver?.disconnect();
       window.removeEventListener('resize', handleScroll);
     };
-  }, [jobs.length, updateScrollState]);
+  }, [jobs.length, showPostCard, updateScrollState]);
 
   const scrollJobs = (direction) => {
     const rail = railRef.current;
@@ -781,7 +976,7 @@ const ClientJobCarousel = ({ jobs, onEditDraft, onEditPosting, onRemove, onViewP
   };
 
   return (
-    <Box as="section" aria-label="Client jobs" position="relative" w="full">
+    <Box as="section" aria-label={ariaLabel} position="relative" w="full">
       <HStack display={{ base: 'flex', md: 'none' }} justify="space-between" mb={3}>
         <JobCarouselArrow
           direction="previous"
@@ -832,7 +1027,7 @@ const ClientJobCarousel = ({ jobs, onEditDraft, onEditPosting, onRemove, onViewP
               onViewProposals={onViewProposals}
             />
           ))}
-          <PostJobCarouselCard />
+          {showPostCard ? <PostJobCarouselCard /> : null}
         </HStack>
       </Box>
       <JobCarouselArrow
@@ -849,11 +1044,63 @@ const ClientJobCarousel = ({ jobs, onEditDraft, onEditPosting, onRemove, onViewP
   );
 };
 
+const ClientJobSection = ({
+  section,
+  onEditDraft,
+  onEditPosting,
+  onRemove,
+  onViewProposals,
+}) => {
+  const meta = JOB_STATUS_META[section.key] ?? JOB_STATUS_META.OPEN;
+
+  return (
+    <VStack as="section" align="stretch" gap={4} aria-labelledby={`client-jobs-${section.key}`}>
+      <HStack justify="space-between" align={{ base: 'start', md: 'center' }} gap={4} flexWrap="wrap">
+        <Box minW="0">
+          <HStack gap={3} align="center" flexWrap="wrap" mb={1.5}>
+            <Heading
+              as="h2"
+              id={`client-jobs-${section.key}`}
+              color="white"
+              size="lg"
+              letterSpacing="-0.02em"
+            >
+              {section.title}
+            </Heading>
+            <Badge
+              colorPalette={meta.colorPalette}
+              variant="subtle"
+              borderRadius="full"
+              px={2.5}
+              py={0.5}
+              fontWeight="bold"
+            >
+              {section.jobs.length}
+            </Badge>
+          </HStack>
+          <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" maxW="640px">
+            {section.description}
+          </Text>
+        </Box>
+      </HStack>
+      <ClientJobCarousel
+        jobs={section.jobs}
+        showPostCard={section.showPostCard}
+        ariaLabel={section.title}
+        onEditDraft={onEditDraft}
+        onEditPosting={onEditPosting}
+        onRemove={onRemove}
+        onViewProposals={onViewProposals}
+      />
+    </VStack>
+  );
+};
+
 const RemoveJobDialog = ({ job, loading, error, onClose, onConfirm }) => {
   const isDraft = job?.status === 'DRAFT';
   const jobTitle = job ? getJobTitle(job) : 'this job';
+  const meta = JOB_STATUS_META[job?.status] ?? JOB_STATUS_META.OPEN;
   const actionLabel = isDraft ? 'Remove draft' : 'Remove posting';
-  const statusLabel = isDraft ? 'Draft job post' : 'Open job post';
   const description = isDraft
     ? `Remove "${jobTitle}" from your dashboard? This draft will no longer be available to continue posting.`
     : `Remove "${jobTitle}" from your open postings? Freelancers will no longer see it as an active job.`;
@@ -861,7 +1108,7 @@ const RemoveJobDialog = ({ job, loading, error, onClose, onConfirm }) => {
   return (
     <ConfirmDialog
       open={!!job}
-      headerBadge={{ label: statusLabel, colorPalette: isDraft ? 'yellow' : 'green' }}
+      headerBadge={{ label: meta.label, colorPalette: meta.colorPalette }}
       title={`${actionLabel}?`}
       description={description}
       confirmLabel={actionLabel}
@@ -875,7 +1122,14 @@ const RemoveJobDialog = ({ job, loading, error, onClose, onConfirm }) => {
   );
 };
 
-const ClientDashboard = ({ user, onLogout }) => {
+const ClientDashboard = ({
+  user,
+  walletConnecting,
+  walletError,
+  walletSuccess,
+  onConnectWallet,
+  onLogout,
+}) => {
   const navigate = useNavigate();
   const [jobPendingRemoval, setJobPendingRemoval] = React.useState(null);
   const { data, loading, error } = useQuery(GET_MY_JOBS, {
@@ -888,6 +1142,17 @@ const ClientDashboard = ({ user, onLogout }) => {
   });
 
   const jobs = data?.myJobs ?? [];
+  const jobSections = React.useMemo(() => groupClientJobs(jobs), [jobs]);
+  const hasOpenSection = jobSections.some((section) => section.key === 'OPEN');
+  // Keep "Post a job" visible in the first section when nothing is open yet.
+  const sectionsWithPostCard = React.useMemo(
+    () =>
+      jobSections.map((section, index) => ({
+        ...section,
+        showPostCard: section.showPostCard || (!hasOpenSection && index === 0),
+      })),
+    [jobSections, hasOpenSection]
+  );
 
   const handleEditDraft = (job) => {
     navigate(`/post-job/${job.id}`);
@@ -898,6 +1163,10 @@ const ClientDashboard = ({ user, onLogout }) => {
   };
 
   const handleRemove = (job) => {
+    // Only drafts and open postings can be removed from the dashboard.
+    if (job.status !== 'DRAFT' && job.status !== 'OPEN') {
+      return;
+    }
     resetDeleteJob?.();
     setJobPendingRemoval(job);
   };
@@ -929,23 +1198,31 @@ const ClientDashboard = ({ user, onLogout }) => {
     navigate(`/jobs/${job.id}/proposals`, { state: { from: '/dashboard' } });
   };
 
+  const chainHint = WEB3_CONFIG.chainName
+    ? `${WEB3_CONFIG.chainName} (chain ${WEB3_CONFIG.chainId})`
+    : 'Local Anvil for MVP escrow';
+
   return (
     <PageShell accents={pageAccents} maxW="1274px" py={{ base: 8, md: 10 }}>
       <VStack align="stretch" gap={8}>
+        <Stack
+          direction={{ base: 'column', lg: 'row' }}
+          justify="space-between"
+          align={{ base: 'stretch', lg: 'start' }}
+          gap={6}
+        >
+          <VStack align="start" gap={3} flex="1" minW="0">
+            <Heading color="white" size={{ base: 'xl', md: '3xl' }} letterSpacing="-0.03em">
+              Good day, {user?.username}
+            </Heading>
+            <Text color="rgba(226, 232, 240, 0.58)" fontSize="md" maxW="560px">
+              Track drafts, open posts, active contracts, and completed work in one place.
+            </Text>
+          </VStack>
 
-          <Stack
-            direction={{ base: 'column', md: 'row' }}
-            justify="space-between"
-            align={{ base: 'stretch', md: 'center' }}
-            gap={6}
-          >
-            <VStack align="start" gap={3}>
-              <Heading color="white" size={{ base: 'xl', md: '3xl' }} letterSpacing="-0.03em">
-                Good day, {user?.username}
-              </Heading>
-            </VStack>
-
+          <VStack align={{ base: 'stretch', lg: 'end' }} gap={3} flexShrink={0}>
             <HStack gap={3} justify={{ base: 'stretch', md: 'flex-end' }} flexWrap="wrap">
+              <NotificationBell />
               <Button
                 as={Link}
                 to="/post-job"
@@ -975,20 +1252,46 @@ const ClientDashboard = ({ user, onLogout }) => {
                 Logout
               </Button>
             </HStack>
-          </Stack>
+            <WalletConnectionCard
+              variant="compact"
+              walletAddress={user?.walletAddress}
+              connecting={walletConnecting}
+              error={walletError}
+              success={walletSuccess}
+              onConnect={onConnectWallet}
+              roleHint="client"
+              chainHint={chainHint}
+            />
+          </VStack>
+        </Stack>
 
+        {/* Full guidance card when escrow wallet is still missing */}
+        {!user?.walletAddress ? (
+          <WalletConnectionCard
+            variant="card"
+            walletAddress={user?.walletAddress}
+            connecting={walletConnecting}
+            error={walletError}
+            success={walletSuccess}
+            onConnect={onConnectWallet}
+            roleHint="client"
+            chainHint={chainHint}
+          />
+        ) : null}
 
         <HStack justify="space-between" align={{ base: 'start', md: 'center' }} flexWrap="wrap" gap={4}>
           <Box>
-
             <Heading color="white" size="2xl">
-              Overview
+              Your jobs
             </Heading>
           </Box>
         </HStack>
 
         {loading && !data ? (
-          <PageState title="Loading jobs" description="We are pulling your posted jobs and saved drafts." />
+          <PageState
+            title="Loading jobs"
+            description="We are pulling your drafts, open posts, and contracts."
+          />
         ) : null}
 
         {error ? (
@@ -1013,7 +1316,8 @@ const ClientDashboard = ({ user, onLogout }) => {
                   No jobs yet
                 </Heading>
                 <Text color="rgba(226, 232, 240, 0.68)" maxW="560px">
-                  Start a job post or save a draft. It will appear here when you are ready to continue.
+                  Start a job post or save a draft. Open posts, active contracts, and completed work
+                  will all appear here.
                 </Text>
               </VStack>
               <Button as={Link} to="/post-job" borderRadius="full" colorPalette="green">
@@ -1023,14 +1327,19 @@ const ClientDashboard = ({ user, onLogout }) => {
           </GlassPanel>
         ) : null}
 
-        {!error && jobs.length > 0 ? (
-          <ClientJobCarousel
-            jobs={jobs}
-            onEditDraft={handleEditDraft}
-            onEditPosting={handleEditPosting}
-            onRemove={handleRemove}
-            onViewProposals={handleViewProposals}
-          />
+        {!error && sectionsWithPostCard.length > 0 ? (
+          <VStack align="stretch" gap={10}>
+            {sectionsWithPostCard.map((section) => (
+              <ClientJobSection
+                key={section.key}
+                section={section}
+                onEditDraft={handleEditDraft}
+                onEditPosting={handleEditPosting}
+                onRemove={handleRemove}
+                onViewProposals={handleViewProposals}
+              />
+            ))}
+          </VStack>
         ) : null}
 
         {deletingJob ? (
@@ -1053,12 +1362,15 @@ const ClientDashboard = ({ user, onLogout }) => {
 
 const FreelancerDashboard = ({
   user,
-  shortAddress,
+  walletConnecting,
   walletError,
   walletSuccess,
   onConnectWallet,
   onLogout,
 }) => {
+  const chainHint = WEB3_CONFIG.chainName
+    ? `${WEB3_CONFIG.chainName} (chain ${WEB3_CONFIG.chainId})`
+    : 'Local Anvil for MVP escrow';
   const { data, loading } = useQuery(GET_MY_BIDS, {
     fetchPolicy: 'cache-and-network',
   });
@@ -1076,7 +1388,10 @@ const FreelancerDashboard = ({
   const bids = data?.myBids ?? [];
   const savedJobs = savedJobsData?.mySavedJobs ?? [];
   const pendingBidCount = bids.filter((bid) => bid.status === 'PENDING').length;
+  const offeredBidCount = bids.filter((bid) => bid.status === 'OFFERED').length;
   const acceptedBidCount = bids.filter((bid) => bid.status === 'ACCEPTED').length;
+  const offeredBids = bids.filter((bid) => bid.status === 'OFFERED');
+  const activeContractBids = bids.filter((bid) => bid.status === 'ACCEPTED');
   const totalBidCountLabel = loading && !data ? '...' : String(bids.length);
 
   const handleToggleSavedJob = (job) => {
@@ -1106,6 +1421,7 @@ const FreelancerDashboard = ({
               </Heading>
             </Box>
             <HStack gap={3} justify={{ base: 'stretch', md: 'flex-end' }}>
+              <NotificationBell />
               <Button
                 as={Link}
                 to="/jobs"
@@ -1136,6 +1452,64 @@ const FreelancerDashboard = ({
           >
             <VStack align="stretch" gap={7}>
               <FreelancerSearchBar />
+
+              {offeredBids.length > 0 ? (
+                <VStack align="stretch" gap={3}>
+                  <Heading as="h2" size="lg" color="white" letterSpacing="0">
+                    Offers awaiting response
+                  </Heading>
+                  <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm">
+                    Clients sent you offers. Accept or decline from My proposals — these jobs may no longer
+                    appear in open-job search after you accept.
+                  </Text>
+                  <VStack align="stretch" gap={3}>
+                    {offeredBids.map((bid) => (
+                      <GlassPanel key={bid.id} variant="subtle" borderRadius="18px" p={4}>
+                        <HStack justify="space-between" align="center" gap={4} flexWrap="wrap">
+                          <Box minW="0">
+                            <Text color="white" fontWeight="bold">
+                              {bid.job?.title || 'Job offer'}
+                            </Text>
+                            <Text color="cyan.200" fontSize="sm" mt={1}>
+                              Offer received · respond in My proposals
+                            </Text>
+                          </Box>
+                          <Button as={Link} to="/my-bids" size="sm" {...greenPillButtonStyles}>
+                            Review offer
+                          </Button>
+                        </HStack>
+                      </GlassPanel>
+                    ))}
+                  </VStack>
+                </VStack>
+              ) : null}
+
+              {activeContractBids.length > 0 ? (
+                <VStack align="stretch" gap={3}>
+                  <Heading as="h2" size="lg" color="white" letterSpacing="0">
+                    Active contracts
+                  </Heading>
+                  <VStack align="stretch" gap={3}>
+                    {activeContractBids.map((bid) => (
+                      <GlassPanel key={bid.id} variant="subtle" borderRadius="18px" p={4}>
+                        <HStack justify="space-between" align="center" gap={4} flexWrap="wrap">
+                          <Box minW="0">
+                            <Text color="white" fontWeight="bold">
+                              {bid.job?.title || 'Contract'}
+                            </Text>
+                            <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" mt={1}>
+                              {bid.job?.status === 'COMPLETED' ? 'Completed' : 'In progress'} · hired
+                            </Text>
+                          </Box>
+                          <Button as={Link} to={`/jobs/${bid.job.id}`} size="sm" {...subtlePillButtonStyles}>
+                            View job
+                          </Button>
+                        </HStack>
+                      </GlassPanel>
+                    ))}
+                  </VStack>
+                </VStack>
+              ) : null}
 
               <VStack align="stretch" gap={5}>
                 <Heading as="h2" size="lg" color="white" letterSpacing="0">
@@ -1206,49 +1580,18 @@ const FreelancerDashboard = ({
                 </Text>
               </Box>
             </HStack>
-
-            <Box borderTop="1px solid" borderColor="rgba(148, 163, 184, 0.14)" pt={4}>
-              <HStack justify="space-between" align="center" mb={3}>
-                <HStack gap={2} color="rgba(226, 232, 240, 0.68)">
-                  <Wallet size={17} />
-                  <Text fontSize="sm" fontWeight="semibold">
-                    Wallet
-                  </Text>
-                </HStack>
-                {user?.walletAddress ? (
-                  <Badge colorPalette="green" borderRadius="full">
-                    Connected
-                  </Badge>
-                ) : (
-                  <Badge colorPalette="yellow" borderRadius="full">
-                    Needed
-                  </Badge>
-                )}
-              </HStack>
-              {user?.walletAddress ? (
-                <Text color="white" fontSize="sm" fontWeight="semibold">
-                  {shortAddress}
-                </Text>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={onConnectWallet}
-                  size="sm"
-                  borderRadius="full"
-                  bgGradient="to-r"
-                  gradientFrom="cyan.400"
-                  gradientTo="blue.500"
-                  color="gray.950"
-                  fontWeight="bold"
-                  w="full"
-                >
-                  Connect Wallet
-                </Button>
-              )}
-              {walletError ? <Text color="red.300" fontSize="sm" mt={3}>{walletError}</Text> : null}
-              {walletSuccess ? <Text color="green.300" fontSize="sm" mt={3}>{walletSuccess}</Text> : null}
-            </Box>
           </SidebarCard>
+
+          <WalletConnectionCard
+            variant="card"
+            walletAddress={user?.walletAddress}
+            connecting={walletConnecting}
+            error={walletError}
+            success={walletSuccess}
+            onConnect={onConnectWallet}
+            roleHint="freelancer"
+            chainHint={chainHint}
+          />
 
           <SidebarCard
             title="Profile visibility"
@@ -1256,21 +1599,16 @@ const FreelancerDashboard = ({
             action={<Pencil size={17} color="rgba(226, 232, 240, 0.58)" />}
           >
             <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.65">
-              Wallet verification and stronger proposals will help this profile stand out as the marketplace grows.
+              Connecting a wallet unlocks on-chain escrow payouts and helps clients trust your profile.
             </Text>
             {user?.walletAddress ? (
               <Badge alignSelf="start" colorPalette="green" variant="subtle" borderRadius="full" px={3} py={1}>
-                Verification ready
+                Wallet ready
               </Badge>
             ) : (
-              <Button
-                type="button"
-                size="sm"
-                onClick={onConnectWallet}
-                {...subtlePillButtonStyles}
-              >
-                Connect wallet
-              </Button>
+              <Badge alignSelf="start" colorPalette="yellow" variant="subtle" borderRadius="full" px={3} py={1}>
+                Connect wallet to get paid on-chain
+              </Badge>
             )}
           </SidebarCard>
 
@@ -1279,9 +1617,9 @@ const FreelancerDashboard = ({
             icon={<Coins size={19} />}
             action={<ChevronDown size={18} color="rgba(226, 232, 240, 0.58)" />}
           >
-            <SimpleGrid columns={2} gap={3}>
+            <SimpleGrid columns={3} gap={3}>
               <Box>
-                <Text color="cyan.200" fontSize="2xl" fontWeight="bold">
+                <Text color="yellow.200" fontSize="2xl" fontWeight="bold">
                   {pendingBidCount}
                 </Text>
                 <Text color="rgba(226, 232, 240, 0.54)" fontSize="sm">
@@ -1289,11 +1627,19 @@ const FreelancerDashboard = ({
                 </Text>
               </Box>
               <Box>
+                <Text color="cyan.200" fontSize="2xl" fontWeight="bold">
+                  {offeredBidCount}
+                </Text>
+                <Text color="rgba(226, 232, 240, 0.54)" fontSize="sm">
+                  Offers
+                </Text>
+              </Box>
+              <Box>
                 <Text color="green.200" fontSize="2xl" fontWeight="bold">
                   {acceptedBidCount}
                 </Text>
                 <Text color="rgba(226, 232, 240, 0.54)" fontSize="sm">
-                  Accepted
+                  Hired
                 </Text>
               </Box>
             </SimpleGrid>
@@ -1337,46 +1683,136 @@ const FreelancerDashboard = ({
 };
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [connectWalletMutation] = useMutation(CONNECT_WALLET);
   const [walletError, setWalletError] = React.useState('');
   const [walletSuccess, setWalletSuccess] = React.useState('');
+  const [walletConnecting, setWalletConnecting] = React.useState(false);
+
+  const persistWalletAddress = React.useCallback(
+    async (address, { silent = false } = {}) => {
+      if (!address) {
+        if (!silent) {
+          setWalletError('No wallet account was selected in MetaMask.');
+        }
+        return null;
+      }
+
+      const { data } = await connectWalletMutation({
+        variables: { walletAddress: address },
+      });
+      const nextAddress = data?.connectWallet?.walletAddress || address;
+      updateUser?.({ walletAddress: nextAddress });
+      return nextAddress;
+    },
+    [connectWalletMutation, updateUser]
+  );
 
   const handleConnectWallet = async () => {
     setWalletError('');
     setWalletSuccess('');
+    setWalletConnecting(true);
+    const previous = user?.walletAddress || null;
+
     try {
-      const { address } = await connectWallet();
-      await connectWalletMutation({ variables: { walletAddress: address } });
-      setWalletSuccess(`Connected: ${address.slice(0, 6)}...${address.slice(-4)}`);
+      // First visit: eth_requestAccounts already opens MetaMask.
+      // Already linked: force wallet_requestPermissions so Switch wallet re-prompts
+      // (same dialog UX as a fresh browser).
+      const forcePermissionPrompt = Boolean(previous);
+      const { address } = await connectWallet({ forcePermissionPrompt });
+      const nextAddress = await persistWalletAddress(address);
+
+      if (!nextAddress) {
+        return;
+      }
+
+      if (previous && addressesEqual(previous, nextAddress)) {
+        setWalletSuccess(
+          `Still using ${nextAddress.slice(0, 6)}…${nextAddress.slice(-4)}. Pick another account in MetaMask if you meant to switch.`
+        );
+      } else if (previous) {
+        setWalletSuccess(
+          `Wallet switched to ${nextAddress.slice(0, 6)}…${nextAddress.slice(-4)}`
+        );
+      } else {
+        setWalletSuccess(
+          `Wallet connected: ${nextAddress.slice(0, 6)}…${nextAddress.slice(-4)}`
+        );
+      }
     } catch (error) {
-      setWalletError('Failed to connect wallet: ' + error.message);
+      const message = error?.message || 'Unknown error';
+      if (/MetaMask is not installed/i.test(message)) {
+        setWalletError('MetaMask is not installed. Install the extension, then try again.');
+      } else if (
+        error?.code === 4001 ||
+        error?.error?.code === 4001 ||
+        /user rejected|denied|ACTION_REJECTED/i.test(message)
+      ) {
+        setWalletError('Connection cancelled in MetaMask. Approve the request to continue.');
+      } else {
+        setWalletError(`Failed to connect wallet: ${message}`);
+      }
+    } finally {
+      setWalletConnecting(false);
     }
   };
+
+  // Keep profile wallet in sync when the user changes account in MetaMask.
+  React.useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+
+    return subscribeToWalletAccounts((address) => {
+      if (!address) {
+        setWalletSuccess('');
+        setWalletError(
+          'MetaMask disconnected this site. Click Connect wallet to link an account again.'
+        );
+        return;
+      }
+
+      if (addressesEqual(address, user.walletAddress)) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          setWalletError('');
+          const next = await persistWalletAddress(address, { silent: true });
+          if (next) {
+            setWalletSuccess(
+              `Wallet updated from MetaMask: ${next.slice(0, 6)}…${next.slice(-4)}`
+            );
+          }
+        } catch (error) {
+          setWalletError(
+            `Could not sync MetaMask account: ${error?.message || 'Unknown error'}`
+          );
+        }
+      })();
+    });
+  }, [user, persistWalletAddress]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const shortAddress = user?.walletAddress
-    ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}`
-    : null;
+  const walletProps = {
+    walletConnecting,
+    walletError,
+    walletSuccess,
+    onConnectWallet: handleConnectWallet,
+  };
 
   if (user?.role === 'CLIENT') {
-    return <ClientDashboard user={user} onLogout={handleLogout} />;
+    return <ClientDashboard user={user} onLogout={handleLogout} {...walletProps} />;
   }
 
   return (
-    <FreelancerDashboard
-      user={user}
-      shortAddress={shortAddress}
-      walletError={walletError}
-      walletSuccess={walletSuccess}
-      onConnectWallet={handleConnectWallet}
-      onLogout={handleLogout}
-    />
+    <FreelancerDashboard user={user} onLogout={handleLogout} {...walletProps} />
   );
 };
 

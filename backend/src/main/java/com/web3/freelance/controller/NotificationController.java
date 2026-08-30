@@ -1,8 +1,8 @@
 package com.web3.freelance.controller;
 
-import com.web3.freelance.model.Payment;
+import com.web3.freelance.model.Notification;
 import com.web3.freelance.model.User;
-import com.web3.freelance.service.PaymentService;
+import com.web3.freelance.service.NotificationService;
 import com.web3.freelance.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -12,47 +12,40 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
+import java.util.List;
+
 @Controller
 @RequiredArgsConstructor
-public class PaymentController {
+public class NotificationController {
 
-    private final PaymentService paymentService;
+    private final NotificationService notificationService;
     private final UserService userService;
 
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
-    public Payment paymentForJob(@Argument Long jobId, Authentication authentication) {
+    public List<Notification> myNotifications(@Argument Integer limit, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
-        return paymentService.getPaymentForJob(jobId, currentUser.getId());
+        return notificationService.getMyNotifications(currentUser.getId(), limit);
+    }
+
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    public int unreadNotificationCount(Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return (int) Math.min(notificationService.getUnreadCount(currentUser.getId()), Integer.MAX_VALUE);
     }
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public Payment confirmEscrowFunding(
-            @Argument Long paymentId,
-            @Argument String transactionHash,
-            Authentication authentication) {
+    public Notification markNotificationRead(@Argument Long id, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
-        return paymentService.confirmEscrowFunding(paymentId, transactionHash, currentUser.getId());
+        return notificationService.markRead(id, currentUser.getId());
     }
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public Payment confirmPaymentRelease(
-            @Argument Long paymentId,
-            @Argument String transactionHash,
-            Authentication authentication) {
+    public Boolean markAllNotificationsRead(Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
-        return paymentService.confirmPaymentRelease(paymentId, transactionHash, currentUser.getId());
-    }
-
-    @MutationMapping
-    @PreAuthorize("isAuthenticated()")
-    public Payment releasePayment(
-            @Argument Long paymentId,
-            @Argument String transactionHash,
-            Authentication authentication) {
-        User currentUser = userService.getUserByEmail(authentication.getName());
-        return paymentService.releasePayment(paymentId, transactionHash, currentUser.getId());
+        return notificationService.markAllRead(currentUser.getId());
     }
 }

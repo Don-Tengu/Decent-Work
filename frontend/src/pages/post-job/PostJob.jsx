@@ -673,6 +673,15 @@ const PostJob = () => {
     }
   };
 
+  const handlePaymentModelChange = (value) => {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      paymentModel: value,
+      // On-chain escrow uses native ETH amounts (bid amount is sent as msg.value).
+      currencyCode: value === 'ON_CHAIN_ESCROW' ? 'ETH' : currentDraft.currencyCode || 'USD',
+    }));
+  };
+
   const handleSubmitJob = async () => {
     const jobValidationError = getJobPostValidationError(draft);
 
@@ -1004,6 +1013,7 @@ const PostJob = () => {
       bg="rgba(2, 6, 23, 1)"
       h={{ base: 'auto', lg: isReviewing ? 'auto' : '100vh' }}
       minH="100vh"
+      // Allow the form column to scroll on tall steps (budget + payment protection).
       overflow={{ base: 'auto', lg: isReviewing ? 'auto' : 'hidden' }}
     >
       {isReviewing ? (
@@ -1093,9 +1103,18 @@ const PostJob = () => {
             <VStack
               align="stretch"
               maxH={{ base: 'none', lg: '100%' }}
-              overflowY="visible"
+              overflowY={{ base: 'visible', lg: 'auto' }}
+              overscrollBehavior="contain"
               pr={{ base: 0, lg: 3 }}
-              pb={{ base: 4, lg: 8 }}
+              pb={{ base: 4, lg: 10 }}
+              css={{
+                scrollbarGutter: 'stable',
+                '&::-webkit-scrollbar': { width: '8px' },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'rgba(148, 163, 184, 0.35)',
+                  borderRadius: '999px',
+                },
+              }}
             >
               <StepContent
                 activeStepId={activeStep.id}
@@ -1125,6 +1144,7 @@ const PostJob = () => {
                 onBudgetAmountChange={handleBudgetAmountChange}
                 onBudgetAmountBlur={handleBudgetAmountBlur}
                 onContinueWithoutBudget={handleContinueWithoutBudget}
+                onPaymentModelChange={handlePaymentModelChange}
                 taxonomyNodes={taxonomyNodes}
                 taxonomyLoading={taxonomyLoading}
                 taxonomyError={taxonomyError}

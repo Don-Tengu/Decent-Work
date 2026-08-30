@@ -81,12 +81,12 @@ const baseDraft = {
   scopeDurationDays: 30,
   experienceLevel: 'ENTRY',
   contractToHire: false,
-  budgetType: 'HOURLY',
+  budgetType: 'FIXED',
   budgetNotReadyConfirmed: false,
   budgetNotReadyType: '',
-  hourlyRateMin: '17.00',
-  hourlyRateMax: '49.00',
-  fixedBudget: '',
+  hourlyRateMin: '',
+  hourlyRateMax: '',
+  fixedBudget: '500',
   currencyCode: 'USD',
   paymentModel: 'OFF_CHAIN_NEGOTIATED',
   description:
@@ -127,7 +127,7 @@ describe('StepReview', () => {
     expect(screen.getByText('Emerging Tech')).toBeInTheDocument();
     expect(screen.getByText('Solidity')).toBeInTheDocument();
     expect(screen.getByText('Small, 1 month, Entry level, Not planning to hire full time')).toBeInTheDocument();
-    expect(screen.getByText('$17.00 - $49.00 /hr')).toBeInTheDocument();
+    expect(screen.getByText(/\$500\.00 fixed price/i)).toBeInTheDocument();
   });
 
   it('renders persisted skill names instead of taxonomy labels with matching ids', () => {

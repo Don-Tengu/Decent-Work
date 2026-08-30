@@ -27,6 +27,7 @@ import {
   getDisplayName,
   shortenAddress,
 } from '@/utils/user.js';
+import { getPaymentActionFlags } from '../paymentActions.js';
 
 const drawerContentStyles = {
   bg: 'rgba(8, 13, 25, 0.98)',
@@ -46,7 +47,18 @@ const Section = ({ label, children }) => (
 // Right-side slide-out summarizing a single proposal's freelancer: identity
 // snapshot, the cover letter / experience, skills, and attachments, with a
 // link out to the full profile page.
-const FreelancerDrawer = ({ bid, currencyCode = 'USD', jobStatus, payment, onClose, onHire, onRelease }) => {
+const FreelancerDrawer = ({
+  bid,
+  currencyCode = 'USD',
+  jobStatus,
+  payment,
+  hasOutstandingOffer = false,
+  onClose,
+  onOffer,
+  onWithdrawOffer,
+  onFund,
+  onRelease,
+}) => {
   const freelancer = bid?.freelancer;
   const name = getDisplayName(freelancer);
   const memberSince = formatMemberSince(freelancer?.createdAt);
@@ -54,11 +66,12 @@ const FreelancerDrawer = ({ bid, currencyCode = 'USD', jobStatus, payment, onClo
   const wallet = shortenAddress(freelancer?.walletAddress);
   const bio = freelancer?.profile?.bio?.trim();
   const amount = formatCurrency(bid?.amount, currencyCode);
-  const isAccepted = bid?.status === 'ACCEPTED';
-  const canHire = jobStatus === 'OPEN' && bid?.status === 'PENDING';
-  const isEscrowed = isAccepted && payment?.status === 'ESCROWED';
-  const isPaid = isAccepted && (payment?.status === 'RELEASED' || jobStatus === 'COMPLETED');
-  const paymentNote = isPaid ? 'Paid · completed' : isEscrowed ? 'Funds in escrow' : null;
+  const { canOffer, canWithdrawOffer, canFund, canRelease, paymentNote } = getPaymentActionFlags({
+    bid,
+    jobStatus,
+    payment,
+    hasOutstandingOffer,
+  });
 
   return (
     <Drawer.Root
@@ -187,12 +200,22 @@ const FreelancerDrawer = ({ bid, currencyCode = 'USD', jobStatus, payment, onClo
                 flexDirection="column"
                 gap={3}
               >
-                {canHire ? (
-                  <Button type="button" onClick={() => onHire?.(bid)} w="full" {...greenSolidButtonStyles}>
-                    Hire {name}
+                {canOffer ? (
+                  <Button type="button" onClick={() => onOffer?.(bid)} w="full" {...greenSolidButtonStyles}>
+                    Offer {name}
                   </Button>
                 ) : null}
-                {isEscrowed ? (
+                {canWithdrawOffer ? (
+                  <Button type="button" onClick={() => onWithdrawOffer?.(bid)} w="full" {...subtlePillButtonStyles}>
+                    Withdraw offer
+                  </Button>
+                ) : null}
+                {canFund ? (
+                  <Button type="button" onClick={() => onFund?.(bid)} w="full" {...greenSolidButtonStyles}>
+                    Fund escrow
+                  </Button>
+                ) : null}
+                {canRelease ? (
                   <Button type="button" onClick={() => onRelease?.(bid)} w="full" {...greenSolidButtonStyles}>
                     Release payment
                   </Button>

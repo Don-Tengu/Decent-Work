@@ -65,8 +65,29 @@ public class BidController {
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public Payment acceptBid(@Argument Long bidId, Authentication authentication) {
+    public Bid offerBid(@Argument Long bidId, Authentication authentication) {
         User currentUser = userService.getUserByEmail(authentication.getName());
-        return paymentService.acceptBid(bidId, currentUser.getId());
+        return bidService.offerBid(bidId, currentUser.getId());
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Payment acceptOffer(@Argument Long bidId, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return paymentService.acceptOffer(bidId, currentUser.getId());
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Bid declineOffer(@Argument Long bidId, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return bidService.declineOffer(bidId, currentUser.getId());
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Bid withdrawOffer(@Argument Long bidId, Authentication authentication) {
+        User currentUser = userService.getUserByEmail(authentication.getName());
+        return bidService.withdrawOffer(bidId, currentUser.getId());
     }
 }

@@ -1,0 +1,11 @@
+# Foundry
+cache/
+out/
+broadcast/
+
+# Dotenv
+.env
+
+# Coverage
+lcov.info
+coverage/

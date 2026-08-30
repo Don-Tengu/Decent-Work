@@ -12,4 +12,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByJobId(Long jobId);
 
     Optional<Payment> findByTransactionHash(String transactionHash);
+
+    Optional<Payment> findByFundTransactionHash(String fundTransactionHash);
+
+    Optional<Payment> findByReleaseTransactionHash(String releaseTransactionHash);
 }

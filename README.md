@@ -8,7 +8,7 @@ A decentralized freelance marketplace with smart-contract escrow as the end goal
 decent-work/
 ├── backend/           # Spring Boot + GraphQL API (+ REST for file attachments)
 ├── frontend/          # React SPA
-├── smart-contracts/   # Solidity escrow (Hardhat)
+├── smart-contracts/   # Solidity escrow (Foundry)
 ├── docs/              # Misc tooling / docs
 └── docker-compose.yml # Local Postgres + Redis
 ```
@@ -19,7 +19,7 @@ decent-work/
 |-------|--------|
 | Backend | Spring Boot 3.2, Java 17, Spring for GraphQL (schema-first), JPA/Hibernate, PostgreSQL, Web3j, JWT |
 | Frontend | React 19, Vite 7, Apollo Client, Chakra UI v3, React Router, ethers.js v6, lucide-react, Vitest |
-| Blockchain | Solidity, Hardhat, OpenZeppelin (`FreelanceEscrow.sol`) |
+| Blockchain | Solidity, Foundry (forge/anvil), OpenZeppelin (`FreelanceEscrow.sol`) |
 
 Redis is provisioned in Docker and configured in Spring, but is not used by application code yet.
 
@@ -34,19 +34,33 @@ Redis is provisioned in Docker and configured in Spring, but is not used by appl
 | Job marketplace (search, filter, sort, pagination) | Done (working tree; largely uncommitted) |
 | Place bid / proposal form + bid attachments | Done |
 | Save / unsave jobs | Done |
-| Client hire (`acceptBid`) + reject competing bids | Done **off-chain** (working tree) |
-| Release payment → complete job | Done **off-chain** (working tree) |
+| Client offer → freelancer accept (`offerBid` / `acceptOffer`) | Done |
+| In-app notifications (offer / accept / decline / not selected) | Done |
+| Release payment → complete job | Done (simulated or on-chain) |
 | Freelancer profile page | Scaffold (many sections “coming soon”) |
-| On-chain escrow fund / release | **Not wired** |
+| On-chain escrow fund / release | **MVP wired** (Foundry + MetaMask + RPC verify) |
 
-### Off-chain payment loop (current)
+### Hire & payment loops
 
-1. Freelancer places a bid on an `OPEN` job.
-2. Client hires from `/jobs/:jobId/proposals` → `acceptBid`.
-3. Backend rejects other pending bids, marks the winner `ACCEPTED`, sets job `IN_PROGRESS`, creates a `Payment` with status **`ESCROWED`** (simulated funding).
-4. Client releases payment → payment `RELEASED`, job `COMPLETED`.
+**Hiring (both payment models)**
 
-Real MetaMask → smart-contract funding will replace the simulated `ESCROWED-on-accept` step later.
+1. Client **Offer** (`offerBid`) → bid `OFFERED`, job stays `OPEN`, other proposals stay pending, freelancer notified in-app.
+2. Freelancer **Accept** (`acceptOffer`) → bid `ACCEPTED`, competing `PENDING` → `REJECTED`, job `IN_PROGRESS`, payment created; **or Decline** → bid returns to `PENDING`.
+3. Client may **Withdraw offer** before accept.
+
+Offered/hired jobs are found via **My proposals**, dashboard offers/active contracts, and notifications — not marketplace search (which stays `OPEN`-only).
+
+**Off-chain (`paymentModel = OFF_CHAIN_NEGOTIATED`, default)**
+
+1. After accept → payment `ESCROWED` (simulated) → Release → `RELEASED` / job `COMPLETED`.
+
+**On-chain (`paymentModel = ON_CHAIN_ESCROW`)**
+
+1. After accept → payment `AWAITING_FUNDING`.
+2. Client **Fund escrow** (MetaMask `createEscrow`) → backend verifies → `ESCROWED`.
+3. Client **Release payment** (MetaMask `releasePayment`) → backend verifies → `RELEASED` / job `COMPLETED` (freelancer ~95%, platform 5%).
+
+See `docs/payments/` and `smart-contracts/README.md`.
 
 ## Quick start
 
@@ -59,15 +73,24 @@ Real MetaMask → smart-contract funding will replace the simulated `ESCROWED-on
 
 ### 1. Align database credentials
 
-`docker-compose.yml` and `backend/src/main/resources/application.yml` currently disagree:
+`docker-compose.yml` and `backend/src/main/resources/application-local.yml` currently disagree:
 
-| | Docker Compose | `application.yml` |
+| | Docker Compose | `application-local.yml` |
 |--|----------------|-------------------|
 | DB name | `freelance_marketplace` | `decent_work` |
 | User | `admin` | `jean` |
 | Password | `admin123` | (local secret in file) |
 
-Align them before `docker-compose up` + `./mvnw spring-boot:run`, or point the app at an existing local Postgres that matches `application.yml`.
+Align them before `docker-compose up` + `./mvnw spring-boot:run`, or point the app at an existing local Postgres that matches `application-local.yml`.
+
+Backend config is split:
+
+| File | Role |
+|------|------|
+| `application.yml` | Shared base (env placeholders, safe defaults) |
+| `application-local.yml` | Local profile: DB credentials, JWT secret, GraphiQL, verbose security logs, Anvil web3 defaults |
+
+`local` is active by default (`SPRING_PROFILES_ACTIVE` defaults to `local`). Override with e.g. `SPRING_PROFILES_ACTIVE=prod`.
 
 ### 2. Start infrastructure
 
@@ -97,17 +120,37 @@ npm run dev
 
 Optional: set `VITE_API_BASE_URL` (default `http://localhost:8080`).
 
-### 5. Smart contracts (optional / future)
+### 5. Smart contracts (Foundry)
 
 ```bash
+# Install Foundry: https://book.getfoundry.sh/getting-started/installation
 cd smart-contracts
-npm install
-npm run compile
-npm test
-npx hardhat run scripts/deploy.js --network sepolia
+forge build
+forge test
+
+# Terminal A — local chain
+anvil
+
+# Terminal B — deploy
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url http://127.0.0.1:8545 \
+  --broadcast \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
-After deploy, set `web3.escrow-contract-address` in `application.yml` (still the zero address today).
+Then set env (backend + frontend) to the deployed address:
+
+```bash
+export ESCROW_CONTRACT_ADDRESS=0x...   # forge script output
+export WEB3_PROVIDER_URL=http://127.0.0.1:8545
+export WEB3_CHAIN_ID=31337
+
+# frontend/.env.local
+VITE_ESCROW_ADDRESS=0x...
+VITE_CHAIN_ID=31337
+VITE_CHAIN_NAME=Anvil
+VITE_RPC_URL=http://127.0.0.1:8545
+```
 
 ## Main app routes
 
@@ -140,8 +183,8 @@ Frontend tests live under `frontend/src/test/`. Note: `.gitignore` currently ign
 ### Phase 1 — MVP (current)
 
 - [x] Core off-chain marketplace (post, bid, hire, release)
-- [ ] Commit the hire/marketplace frontend slice + un-ignore backend tests/SQL
-- [ ] Wire `FreelanceEscrow.sol` into accept / release (wallet fund + tx hash)
+- [x] Wire `FreelanceEscrow.sol` fund / release (Foundry + MetaMask + RPC verify)
+- [ ] Commit remaining working-tree slices + un-ignore backend tests/SQL
 - [ ] Harden authz (attachment download ownership, consistent role checks)
 
 ### Phase 2 — Scale

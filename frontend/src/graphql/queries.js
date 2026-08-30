@@ -489,9 +489,9 @@ export const GET_USER = gql`
   }
 `;
 
-export const ACCEPT_BID = gql`
-  mutation AcceptBid($bidId: ID!) {
-    acceptBid(bidId: $bidId) {
+export const OFFER_BID = gql`
+  mutation OfferBid($bidId: ID!) {
+    offerBid(bidId: $bidId) {
       id
       status
       amount
@@ -503,9 +503,126 @@ export const ACCEPT_BID = gql`
   }
 `;
 
+export const ACCEPT_OFFER = gql`
+  mutation AcceptOffer($bidId: ID!) {
+    acceptOffer(bidId: $bidId) {
+      id
+      status
+      amount
+      fundingMode
+      onChainEscrowId
+      fundTransactionHash
+      platformFeePercent
+      job {
+        id
+        status
+        paymentModel
+      }
+    }
+  }
+`;
+
+export const DECLINE_OFFER = gql`
+  mutation DeclineOffer($bidId: ID!) {
+    declineOffer(bidId: $bidId) {
+      id
+      status
+      job {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const WITHDRAW_OFFER = gql`
+  mutation WithdrawOffer($bidId: ID!) {
+    withdrawOffer(bidId: $bidId) {
+      id
+      status
+      job {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const GET_MY_NOTIFICATIONS = gql`
+  query MyNotifications($limit: Int) {
+    myNotifications(limit: $limit) {
+      id
+      type
+      title
+      message
+      linkPath
+      read
+      jobId
+      bidId
+      createdAt
+    }
+  }
+`;
+
+export const UNREAD_NOTIFICATION_COUNT = gql`
+  query UnreadNotificationCount {
+    unreadNotificationCount
+  }
+`;
+
+export const MARK_NOTIFICATION_READ = gql`
+  mutation MarkNotificationRead($id: ID!) {
+    markNotificationRead(id: $id) {
+      id
+      read
+    }
+  }
+`;
+
+export const MARK_ALL_NOTIFICATIONS_READ = gql`
+  mutation MarkAllNotificationsRead {
+    markAllNotificationsRead
+  }
+`;
+
+export const CONFIRM_ESCROW_FUNDING = gql`
+  mutation ConfirmEscrowFunding($paymentId: ID!, $transactionHash: String!) {
+    confirmEscrowFunding(paymentId: $paymentId, transactionHash: $transactionHash) {
+      id
+      status
+      fundingMode
+      amount
+      onChainEscrowId
+      fundTransactionHash
+      clientWallet
+      freelancerWallet
+      platformFeePercent
+      job {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const CONFIRM_PAYMENT_RELEASE = gql`
+  mutation ConfirmPaymentRelease($paymentId: ID!, $transactionHash: String!) {
+    confirmPaymentRelease(paymentId: $paymentId, transactionHash: $transactionHash) {
+      id
+      status
+      releaseTransactionHash
+      transactionHash
+      job {
+        id
+        status
+      }
+    }
+  }
+`;
+
 export const RELEASE_PAYMENT = gql`
-  mutation ReleasePayment($paymentId: ID!) {
-    releasePayment(paymentId: $paymentId) {
+  mutation ReleasePayment($paymentId: ID!, $transactionHash: String) {
+    releasePayment(paymentId: $paymentId, transactionHash: $transactionHash) {
       id
       status
       job {
@@ -522,6 +639,15 @@ export const GET_PAYMENT_FOR_JOB = gql`
       id
       status
       amount
+      fundingMode
+      onChainEscrowId
+      fundTransactionHash
+      releaseTransactionHash
+      clientWallet
+      freelancerWallet
+      platformFeePercent
+      chainId
+      escrowAddress
     }
   }
 `;

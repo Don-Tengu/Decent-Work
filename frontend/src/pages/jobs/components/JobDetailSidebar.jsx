@@ -17,15 +17,6 @@ const SidebarStat = ({ label, value }) => (
 );
 
 const getProposalAction = ({ job, userRole, myBid, loadingMyBid }) => {
-  if (job.status !== 'OPEN') {
-    return {
-      disabled: true,
-      icon: <LockKeyhole size={17} />,
-      label: 'Job not open',
-      copy: 'This job is not accepting new proposals.',
-    };
-  }
-
   if (userRole !== 'FREELANCER') {
     return {
       disabled: true,
@@ -44,13 +35,50 @@ const getProposalAction = ({ job, userRole, myBid, loadingMyBid }) => {
     };
   }
 
+  if (myBid?.status === 'OFFERED') {
+    return {
+      as: Link,
+      to: '/my-bids',
+      icon: <CheckCircle2 size={17} />,
+      label: 'Respond to offer',
+      copy: 'The client sent you an offer. Accept or decline it from My proposals.',
+      highlight: true,
+    };
+  }
+
+  if (myBid?.status === 'ACCEPTED') {
+    return {
+      as: Link,
+      to: '/my-bids',
+      icon: <CheckCircle2 size={17} />,
+      label: 'View active contract',
+      copy:
+        job.status === 'COMPLETED'
+          ? 'This contract is completed. Open My proposals for history.'
+          : 'You are hired on this job. Track it from My proposals.',
+      highlight: true,
+    };
+  }
+
   if (myBid) {
     return {
       as: Link,
       to: '/my-bids',
       icon: <CheckCircle2 size={17} />,
-      label: 'Proposal submitted',
-      copy: 'Your proposal is in review with the client.',
+      label: myBid.status === 'REJECTED' ? 'Not selected' : 'Proposal submitted',
+      copy:
+        myBid.status === 'REJECTED'
+          ? 'Another freelancer was hired for this job.'
+          : 'Your proposal is in review with the client.',
+    };
+  }
+
+  if (job.status !== 'OPEN') {
+    return {
+      disabled: true,
+      icon: <LockKeyhole size={17} />,
+      label: 'Job not open',
+      copy: 'This job is not accepting new proposals.',
     };
   }
 

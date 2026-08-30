@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -6,95 +6,88 @@ import {
   HStack,
   IconButton,
   Input,
-  SimpleGrid,
   Text,
   VStack,
 } from '@chakra-ui/react';
-import { AlertCircle, Clock3, Tag, X } from 'lucide-react';
+import { AlertCircle, Tag, X } from 'lucide-react';
 import { inputStyles } from '../styles.js';
 
-const budgetOptions = [
-  {
-    value: 'HOURLY',
-    label: 'Hourly rate',
-    icon: 'clock',
-  },
-  {
-    value: 'FIXED',
-    label: 'Fixed price',
-    icon: 'tag',
-  },
-];
+/** MVP: fixed-price only — hourly billing is deferred. */
+const FIXED_BUDGET_OPTION = {
+  value: 'FIXED',
+  label: 'Fixed price',
+};
 
 const popoverWidth = 320;
 const popoverViewportMargin = 16;
 
-const getPromptCopy = (budgetType) => {
-  const isHourly = budgetType === 'HOURLY';
+const getPromptCopy = () => ({
+  addLabel: 'Add a Fixed Budget',
+  continueLabel: 'Continue without a budget',
+});
 
-  return {
-    addLabel: isHourly ? 'Add an Hourly Rate' : 'Add a Fixed Budget',
-    continueLabel: isHourly
-      ? 'Continue without an hourly rate'
-      : 'Continue without a budget',
-  };
-};
+const BudgetTypeCard = ({ option, selected, onSelect }) => (
+  <Box
+    as="button"
+    type="button"
+    role="radio"
+    aria-checked={selected}
+    onClick={() => onSelect(option.value)}
+    minH="112px"
+    maxW={{ base: '100%', md: '280px' }}
+    textAlign="left"
+    border="1px solid"
+    borderColor={selected ? 'rgba(134, 239, 172, 0.72)' : 'rgba(148, 163, 184, 0.22)'}
+    bg={selected ? 'rgba(20, 83, 45, 0.28)' : 'rgba(15, 23, 42, 0.42)'}
+    borderRadius="18px"
+    px={5}
+    py={4}
+    cursor="pointer"
+    transition="all 0.2s ease"
+    _hover={{
+      borderColor: selected ? 'rgba(134, 239, 172, 0.86)' : 'rgba(226, 232, 240, 0.36)',
+      bg: selected ? 'rgba(20, 83, 45, 0.38)' : 'rgba(15, 23, 42, 0.58)',
+      transform: 'translateY(-1px)',
+    }}
+    _focusVisible={{
+      outline: '2px solid rgba(255, 255, 255, 0.68)',
+      outlineOffset: '3px',
+    }}
+  >
+    <HStack justify="space-between" align="start" gap={4}>
+      <Box color={selected ? 'green.200' : 'rgba(226, 232, 240, 0.82)'}>
+        <Tag size={24} />
+      </Box>
+      <Box
+        aria-hidden="true"
+        boxSize="24px"
+        border="2px solid"
+        borderColor={selected ? 'green.200' : 'rgba(226, 232, 240, 0.3)'}
+        borderRadius="full"
+        display="grid"
+        placeItems="center"
+        flex="0 0 auto"
+      >
+        {selected ? <Box boxSize="10px" borderRadius="full" bg="green.200" /> : null}
+      </Box>
+    </HStack>
+    <Text color="white" fontWeight="semibold" mt={5}>
+      {option.label}
+    </Text>
+  </Box>
+);
 
-const BudgetTypeCard = ({ option, selected, onSelect }) => {
-  const Icon = option.icon === 'clock' ? Clock3 : Tag;
-
-  return (
-    <Box
-      as="button"
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      onClick={() => onSelect(option.value)}
-      minH="112px"
-      textAlign="left"
-      border="1px solid"
-      borderColor={selected ? 'rgba(134, 239, 172, 0.72)' : 'rgba(148, 163, 184, 0.22)'}
-      bg={selected ? 'rgba(20, 83, 45, 0.28)' : 'rgba(15, 23, 42, 0.42)'}
-      borderRadius="18px"
-      px={5}
-      py={4}
-      cursor="pointer"
-      transition="all 0.2s ease"
-      _hover={{
-        borderColor: selected ? 'rgba(134, 239, 172, 0.86)' : 'rgba(226, 232, 240, 0.36)',
-        bg: selected ? 'rgba(20, 83, 45, 0.38)' : 'rgba(15, 23, 42, 0.58)',
-        transform: 'translateY(-1px)',
-      }}
-      _focusVisible={{
-        outline: '2px solid rgba(255, 255, 255, 0.68)',
-        outlineOffset: '3px',
-      }}
-    >
-      <HStack justify="space-between" align="start" gap={4}>
-        <Box color={selected ? 'green.200' : 'rgba(226, 232, 240, 0.82)'}>
-          <Icon size={24} />
-        </Box>
-        <Box
-          aria-hidden="true"
-          boxSize="24px"
-          border="2px solid"
-          borderColor={selected ? 'green.200' : 'rgba(226, 232, 240, 0.3)'}
-          borderRadius="full"
-          display="grid"
-          placeItems="center"
-          flex="0 0 auto"
-        >
-          {selected ? <Box boxSize="10px" borderRadius="full" bg="green.200" /> : null}
-        </Box>
-      </HStack>
-      <Text color="white" fontWeight="semibold" mt={5}>
-        {option.label}
-      </Text>
-    </Box>
-  );
-};
-
-const MoneyInput = ({ label, name, value, suffix, invalid, placeholder, onChange, onBlur }) => (
+const MoneyInput = ({
+  label,
+  name,
+  value,
+  suffix,
+  currencyPrefix = '$',
+  invalid,
+  placeholder,
+  onChange,
+  onBlur,
+}) => (
   <Field.Root invalid={invalid} w="full">
     <Field.Label color="white" fontWeight="semibold">
       {label}
@@ -110,7 +103,7 @@ const MoneyInput = ({ label, name, value, suffix, invalid, placeholder, onChange
           fontWeight="semibold"
           pointerEvents="none"
         >
-          $
+          {currencyPrefix}
         </Text>
         <Input
           name={name}
@@ -158,13 +151,12 @@ const BudgetErrorMessage = ({ message }) => (
 );
 
 const NotReadyPrompt = ({
-  budgetType,
   position,
   onClose,
   onAddBudget,
   onContinueWithoutBudget,
 }) => {
-  const promptCopy = getPromptCopy(budgetType);
+  const promptCopy = getPromptCopy();
 
   return (
     <Box
@@ -241,7 +233,7 @@ const NotReadyPrompt = ({
           color="green.200"
           fontWeight="bold"
           fontSize="sm"
-          onClick={() => onContinueWithoutBudget(budgetType)}
+          onClick={() => onContinueWithoutBudget('FIXED')}
           _hover={{
             bg: 'transparent',
             color: 'green.100',
@@ -256,6 +248,20 @@ const NotReadyPrompt = ({
   );
 };
 
+const paymentModelOptions = [
+  {
+    value: 'OFF_CHAIN_NEGOTIATED',
+    label: 'Off-chain (simulated escrow)',
+    description: 'Hire and release in the app without a wallet transaction. Good for demos.',
+  },
+  {
+    value: 'ON_CHAIN_ESCROW',
+    label: 'On-chain ETH escrow',
+    description:
+      'Client funds FreelanceEscrow via MetaMask. Bid amounts are in ETH. 5% platform fee on release.',
+  },
+];
+
 const StepFour = ({
   draft,
   error,
@@ -263,22 +269,27 @@ const StepFour = ({
   onBudgetAmountChange,
   onBudgetAmountBlur,
   onContinueWithoutBudget,
+  onPaymentModelChange,
 }) => {
-  const [pendingNotReadyType, setPendingNotReadyType] = useState('');
+  const [showNotReadyPrompt, setShowNotReadyPrompt] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState(null);
   const notReadyButtonRef = useRef(null);
-  const displayedBudgetType =
-    draft.budgetType === 'NOT_READY' ? draft.budgetNotReadyType || 'HOURLY' : draft.budgetType;
-  const isHourly = displayedBudgetType === 'HOURLY';
-  const isFixed = displayedBudgetType === 'FIXED';
-  const notReadyLabel = isHourly
-    ? 'Not ready to set an hourly rate?'
-    : 'Not ready to set a budget?';
   const hasAmountError = !!error;
+  const currencyPrefix =
+    draft.paymentModel === 'ON_CHAIN_ESCROW' || draft.currencyCode === 'ETH' ? 'Ξ' : '$';
+
+  // MVP: coerce legacy hourly drafts to fixed price so the form stays consistent.
+  useEffect(() => {
+    if (draft.budgetType === 'HOURLY') {
+      onBudgetTypeChange('FIXED');
+    }
+    // Intentionally only when budgetType changes — avoid re-firing on parent re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onBudgetTypeChange is not memoized
+  }, [draft.budgetType]);
 
   const handlePromptAddBudget = () => {
-    onBudgetTypeChange(pendingNotReadyType);
-    setPendingNotReadyType('');
+    onBudgetTypeChange('FIXED');
+    setShowNotReadyPrompt(false);
     setPopoverPosition(null);
   };
 
@@ -298,11 +309,11 @@ const StepFour = ({
       top: (triggerRect?.bottom ?? 0) + 12,
       arrowLeft: Math.min(Math.max(triggerCenter - popoverLeft, 18), popoverWidth - 18),
     });
-    setPendingNotReadyType(isFixed ? 'FIXED' : 'HOURLY');
+    setShowNotReadyPrompt(true);
   };
 
   const handlePromptClose = () => {
-    setPendingNotReadyType('');
+    setShowNotReadyPrompt(false);
     setPopoverPosition(null);
   };
 
@@ -312,76 +323,93 @@ const StepFour = ({
   };
 
   return (
-    <VStack align="stretch" gap={7}>
-      <SimpleGrid columns={{ base: 1, md: 2 }} gap={4} role="radiogroup" aria-label="Budget type">
-        {budgetOptions.map((option) => (
-          <BudgetTypeCard
-            key={option.value}
-            option={option}
-            selected={draft.budgetType !== 'NOT_READY' && draft.budgetType === option.value}
-            onSelect={handleBudgetTypeSelect}
+    <VStack align="stretch" gap={6} pb={4}>
+      <Box role="radiogroup" aria-label="Budget type">
+        <BudgetTypeCard
+          option={FIXED_BUDGET_OPTION}
+          selected={draft.budgetType !== 'NOT_READY'}
+          onSelect={handleBudgetTypeSelect}
+        />
+      </Box>
+
+      <VStack align="stretch" gap={5}>
+        <Box>
+          <Text color="rgba(226, 232, 240, 0.78)" lineHeight="1.7">
+            Set a price for the project and pay at the end. On-chain jobs use ETH escrow; off-chain
+            jobs use simulated escrow for demos.
+          </Text>
+        </Box>
+
+        <Box>
+          <Text color="white" fontWeight="semibold" mb={1}>
+            What is the best cost estimate for your project?
+          </Text>
+          <Text color="rgba(226, 232, 240, 0.66)" mb={4}>
+            You can negotiate this cost with your freelancer before hiring.
+          </Text>
+          <MoneyInput
+            label="Project budget"
+            name="fixedBudget"
+            value={draft.fixedBudget}
+            currencyPrefix={currencyPrefix}
+            invalid={hasAmountError}
+            onChange={onBudgetAmountChange}
+            onBlur={onBudgetAmountBlur}
+            placeholder="0"
           />
-        ))}
-      </SimpleGrid>
-
-      {isFixed ? (
-        <VStack align="stretch" gap={6}>
-          <Box>
-            <Text color="rgba(226, 232, 240, 0.78)" lineHeight="1.7">
-              Set a price for the project and pay at the end, or you can divide the project into
-              milestones and pay as each milestone is completed.
-            </Text>
-          </Box>
-
-          <Box>
-            <Text color="white" fontWeight="semibold" mb={1}>
-              What is the best cost estimate for your project?
-            </Text>
-            <Text color="rgba(226, 232, 240, 0.66)" mb={4}>
-              You can negotiate this cost and create milestones when you chat with your freelancer.
-            </Text>
-            <MoneyInput
-              label="Project budget"
-              name="fixedBudget"
-              value={draft.fixedBudget}
-              invalid={hasAmountError}
-              onChange={onBudgetAmountChange}
-              onBlur={onBudgetAmountBlur}
-              placeholder="0"
-            />
-          </Box>
-        </VStack>
-      ) : (
-        <VStack align="stretch" gap={6}>
-          <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-            <MoneyInput
-              label="From"
-              name="hourlyRateMin"
-              value={draft.hourlyRateMin}
-              suffix="/hr"
-              invalid={hasAmountError}
-              onChange={onBudgetAmountChange}
-              onBlur={onBudgetAmountBlur}
-            />
-            <MoneyInput
-              label="To"
-              name="hourlyRateMax"
-              value={draft.hourlyRateMax}
-              suffix="/hr"
-              invalid={hasAmountError}
-              onChange={onBudgetAmountChange}
-              onBlur={onBudgetAmountBlur}
-            />
-          </SimpleGrid>
-        </VStack>
-      )}
+        </Box>
+      </VStack>
 
       {error ? <BudgetErrorMessage message={error} /> : null}
 
-      <Box alignSelf="start" position="relative" display="inline-flex" pt={2}>
-        {pendingNotReadyType && popoverPosition ? (
+      <Box>
+        <Text color="white" fontWeight="semibold" mb={1}>
+          Payment protection
+        </Text>
+        <Text color="rgba(226, 232, 240, 0.66)" mb={4} lineHeight="1.6">
+          Choose how funds are held after you hire. On-chain escrow requires MetaMask and a
+          deployed contract (Foundry / Anvil).
+        </Text>
+        <VStack align="stretch" gap={3} role="radiogroup" aria-label="Payment model">
+          {paymentModelOptions.map((option) => {
+            const selected = (draft.paymentModel || 'OFF_CHAIN_NEGOTIATED') === option.value;
+            return (
+              <Box
+                key={option.value}
+                as="button"
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onPaymentModelChange?.(option.value)}
+                textAlign="left"
+                border="1px solid"
+                borderColor={selected ? 'rgba(34, 211, 238, 0.65)' : 'rgba(148, 163, 184, 0.22)'}
+                bg={selected ? 'rgba(8, 47, 73, 0.45)' : 'rgba(15, 23, 42, 0.42)'}
+                borderRadius="16px"
+                px={5}
+                py={4}
+                cursor="pointer"
+                transition="all 0.2s ease"
+                flexShrink={0}
+                _hover={{
+                  borderColor: selected ? 'rgba(34, 211, 238, 0.85)' : 'rgba(226, 232, 240, 0.36)',
+                }}
+              >
+                <Text color="white" fontWeight="semibold" mb={1}>
+                  {option.label}
+                </Text>
+                <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.55">
+                  {option.description}
+                </Text>
+              </Box>
+            );
+          })}
+        </VStack>
+      </Box>
+
+      <Box alignSelf="start" position="relative" display="inline-flex" pt={1} flexShrink={0}>
+        {showNotReadyPrompt && popoverPosition ? (
           <NotReadyPrompt
-            budgetType={pendingNotReadyType}
             position={popoverPosition}
             onClose={handlePromptClose}
             onAddBudget={handlePromptAddBudget}
@@ -399,7 +427,7 @@ const StepFour = ({
           onClick={handleNotReadyClick}
           _hover={{ bg: 'transparent', color: 'green.200' }}
         >
-          {notReadyLabel}
+          Not ready to set a budget?
         </Button>
       </Box>
     </VStack>

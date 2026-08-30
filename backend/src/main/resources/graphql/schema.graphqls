@@ -210,16 +210,46 @@ type Bid {
 
 enum BidStatus {
     PENDING
+    OFFERED
     ACCEPTED
     REJECTED
+}
+
+type Notification {
+    id: ID!
+    type: NotificationType!
+    title: String!
+    message: String!
+    linkPath: String!
+    read: Boolean!
+    jobId: ID
+    bidId: ID
+    createdAt: String!
+}
+
+enum NotificationType {
+    OFFER_RECEIVED
+    OFFER_ACCEPTED
+    OFFER_DECLINED
+    OFFER_WITHDRAWN
+    BID_NOT_SELECTED
 }
 
 type Payment {
     id: ID!
     amount: Float!
+    amountWei: String
     status: PaymentStatus!
+    fundingMode: FundingMode!
     transactionHash: String
+    fundTransactionHash: String
+    releaseTransactionHash: String
+    onChainEscrowId: String
+    chainId: Int
     escrowAddress: String!
+    clientWallet: String
+    freelancerWallet: String
+    platformFeePercent: Int
     job: Job!
     freelancer: User!
     client: User!
@@ -227,10 +257,15 @@ type Payment {
 }
 
 enum PaymentStatus {
-    PENDING
+    AWAITING_FUNDING
     ESCROWED
     RELEASED
     REFUNDED
+}
+
+enum FundingMode {
+    SIMULATED
+    ON_CHAIN
 }
 
 type AuthPayload {
@@ -271,6 +306,10 @@ type Query {
 
     # Payment queries
     paymentForJob(jobId: ID!): Payment
+
+    # Notifications
+    myNotifications(limit: Int): [Notification!]!
+    unreadNotificationCount: Int!
 }
 
 type Mutation {
@@ -291,11 +330,27 @@ type Mutation {
     saveJob(id: ID!): Job!
     unsaveJob(id: ID!): Job!
 
-    # Bid
+    # Bid / offers
     placeBid(input: PlaceBidInput!): Bid!
-    acceptBid(bidId: ID!): Payment!
+    """Client sends an offer for a pending proposal. Does not reject others or create payment."""
+    offerBid(bidId: ID!): Bid!
+    """Freelancer accepts an outstanding offer; creates payment and starts the job."""
+    acceptOffer(bidId: ID!): Payment!
+    """Freelancer declines an offer; proposal returns to PENDING."""
+    declineOffer(bidId: ID!): Bid!
+    """Client withdraws an outstanding offer; proposal returns to PENDING."""
+    withdrawOffer(bidId: ID!): Bid!
+
+    # Notifications
+    markNotificationRead(id: ID!): Notification!
+    markAllNotificationsRead: Boolean!
 
     # Payment
+    """Confirm on-chain createEscrow funding (ON_CHAIN payments)."""
+    confirmEscrowFunding(paymentId: ID!, transactionHash: String!): Payment!
+    """Confirm on-chain releasePayment (ON_CHAIN payments)."""
+    confirmPaymentRelease(paymentId: ID!, transactionHash: String!): Payment!
+    """Simulated release for OFF_CHAIN payments; on-chain requires transactionHash + verification."""
     releasePayment(paymentId: ID!, transactionHash: String): Payment!
 }
 

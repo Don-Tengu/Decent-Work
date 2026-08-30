@@ -133,10 +133,24 @@ export const AuthProvider = ({ children }) => {
     redirectToLogin();
   };
 
+  /** Merge fields into the current user (e.g. after connectWallet). */
+  const updateUser = useCallback((partialUser) => {
+    setUser((current) => {
+      if (!current) {
+        return current;
+      }
+      const next = { ...current, ...partialUser };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const authLoading = Boolean(token) && loading && !user;
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading: authLoading }}>
+    <AuthContext.Provider
+      value={{ user, login, register, logout, updateUser, loading: authLoading }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -80,10 +80,10 @@ const jobResponse = {
   scopeDurationDays: 30,
   experienceLevel: 'INTERMEDIATE',
   contractToHire: false,
-  budgetType: 'HOURLY',
-  hourlyRateMin: 17,
-  hourlyRateMax: 49,
-  fixedBudget: null,
+  budgetType: 'FIXED',
+  hourlyRateMin: null,
+  hourlyRateMax: null,
+  fixedBudget: 500,
   currencyCode: 'USD',
   paymentModel: 'OFF_CHAIN_NEGOTIATED',
   category: {
@@ -147,10 +147,10 @@ const mocks = [
           scopeDurationUnit: 'MONTH',
           experienceLevel: 'INTERMEDIATE',
           contractToHire: false,
-          budgetType: 'HOURLY',
-          hourlyRateMin: 17,
-          hourlyRateMax: 49,
-          fixedBudget: null,
+          budgetType: 'FIXED',
+          hourlyRateMin: null,
+          hourlyRateMax: null,
+          fixedBudget: 500,
           currencyCode: 'USD',
           paymentModel: 'OFF_CHAIN_NEGOTIATED',
         },
@@ -180,9 +180,9 @@ const mocks = [
           scopeDurationUnit: 'MONTH',
           experienceLevel: 'INTERMEDIATE',
           contractToHire: false,
-          budgetType: 'HOURLY',
-          hourlyRateMin: 17,
-          hourlyRateMax: 49,
+          budgetType: 'FIXED',
+          hourlyRateMin: null,
+          hourlyRateMax: null,
           fixedBudget: null,
           currencyCode: 'USD',
           paymentModel: 'OFF_CHAIN_NEGOTIATED',
@@ -267,6 +267,10 @@ describe('PostJob review page', () => {
     await user.click(screen.getByRole('button', { name: /next step: budget/i }));
 
     await screen.findByRole('heading', { name: 'Tell us about your budget.' });
+    expect(screen.queryByRole('radio', { name: /hourly rate/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /fixed price/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /on-chain eth escrow/i })).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: /project budget/i }), '500');
     await user.click(screen.getByRole('button', { name: /next step: details/i }));
 
     await screen.findByRole('heading', { name: 'Start the conversation.' });
@@ -276,7 +280,7 @@ describe('PostJob review page', () => {
     await user.click(screen.getByRole('button', { name: /review job post/i }));
 
     await screen.findByRole('heading', { name: 'Review your job post' });
-    expect(screen.getByText('$17.00 - $49.00 /hr')).toBeInTheDocument();
+    expect(screen.getByText(/\$500\.00 fixed price/i)).toBeInTheDocument();
     expect(screen.queryByText('Step 5 of 5')).not.toBeInTheDocument();
     expect(screen.queryByText('5/5 complete')).not.toBeInTheDocument();
     expect(screen.queryByText('Step 6 of 6')).not.toBeInTheDocument();
@@ -402,10 +406,10 @@ describe('PostJob review page', () => {
               scopeDurationUnit: 'MONTH',
               experienceLevel: 'INTERMEDIATE',
               contractToHire: false,
-              budgetType: 'HOURLY',
-              hourlyRateMin: 17,
-              hourlyRateMax: 49,
-              fixedBudget: null,
+              budgetType: 'FIXED',
+              hourlyRateMin: null,
+              hourlyRateMax: null,
+              fixedBudget: 500,
               currencyCode: 'USD',
               paymentModel: 'OFF_CHAIN_NEGOTIATED',
             },
