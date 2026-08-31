@@ -5,6 +5,11 @@
 # Optional env: WEB3_PROVIDER_URL (use a reliable Base RPC in prod, not the public default).
 
 spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+
   jpa:
     hibernate:
       ddl-auto: validate

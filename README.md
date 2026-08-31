@@ -80,17 +80,16 @@ See `docs/payments/` and `smart-contracts/README.md`.
 - Docker & Docker Compose
 - MetaMask (optional until on-chain escrow lands)
 
-### 1. Align database credentials
+### 1. Database (local)
 
-`docker-compose.yml` and `backend/src/main/resources/application-local.yml` currently disagree:
+`docker-compose.yml` and `application-local.yml` share dummy local credentials (`decent_work` / `decent` / `localdev`). These are for laptop Postgres only — set real `DATABASE_*` and `JWT_SECRET` via env on `dev` / `prod`.
 
-| | Docker Compose | `application-local.yml` |
-|--|----------------|-------------------|
-| DB name | `freelance_marketplace` | `decent_work` |
-| User | `admin` | `jean` |
-| Password | `admin123` | (local secret in file) |
+If you already had a Postgres volume or a `jean` role, recreate or migrate:
 
-Align them before `docker-compose up` + `./mvnw spring-boot:run`, or point the app at an existing local Postgres that matches `application-local.yml`.
+```bash
+docker-compose down -v   # wipes the old volume
+docker-compose up -d
+```
 
 Backend config is split by **app environment** (not by token). Each process talks to one chain:
 
@@ -215,7 +214,6 @@ Frontend tests live under `frontend/src/test/`. Note: `.gitignore` currently ign
 
 ### Phase 3 — Production
 
-- Externalize secrets; prod config profile
 - Deployment, observability, multi-chain support as needed
 
 ## Agent / contributor docs

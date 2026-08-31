@@ -1,8 +1,14 @@
 # Development profile — Base Sepolia (chain 84532), Circle USDC.
 # Activate: SPRING_PROFILES_ACTIVE=dev
-# Secrets (DB, JWT, escrow address after deploy) come from env, not this file.
+# Required env: DATABASE_URL, DATABASE_USERNAME, DATABASE_PASSWORD, JWT_SECRET
+# Optional: ESCROW_CONTRACT_ADDRESS after Sepolia deploy.
 
 spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
@@ -25,6 +31,9 @@ web3:
   token-symbol: USDC
   token-decimals: 6
   platform-fee-percent: ${PLATFORM_FEE_PERCENT:5}
+
+jwt:
+  secret: ${JWT_SECRET}
 
 logging:
   level:
