@@ -1,0 +1,32 @@
+# Development profile — Base Sepolia (chain 84532), Circle USDC.
+# Activate: SPRING_PROFILES_ACTIVE=dev
+# Secrets (DB, JWT, escrow address after deploy) come from env, not this file.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: false
+
+  graphql:
+    graphiql:
+      enabled: true
+    schema:
+      printer:
+        enabled: true
+
+web3:
+  family: evm
+  chain-key: base-sepolia
+  provider-url: ${WEB3_PROVIDER_URL:https://sepolia.base.org}
+  chain-id: ${WEB3_CHAIN_ID:84532}
+  escrow-contract-address: ${ESCROW_CONTRACT_ADDRESS:0x0000000000000000000000000000000000000000}
+  token-address: ${WEB3_TOKEN_ADDRESS:0x036CbD53842c5426634e7929541eC2318f3dCF7e}
+  token-symbol: USDC
+  token-decimals: 6
+  platform-fee-percent: ${PLATFORM_FEE_PERCENT:5}
+
+logging:
+  level:
+    root: info
+    com.web3.freelance: debug

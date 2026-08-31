@@ -8,14 +8,11 @@ import {MockUSDC} from "../src/MockUSDC.sol";
 /**
  * Deploy FreelanceEscrow for USDC.
  *
- * Anvil (deploys MockUSDC and mints to default accounts):
- *   forge script script/Deploy.s.sol:Deploy --rpc-url http://127.0.0.1:8545 --broadcast \
- *     --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+ * Signer comes from the Forge CLI, not from this file:
+ *   Anvil:        --unlocked --sender 0xf39F...  (make deploy-local)
+ *   Base Sepolia: --account <keystore-name>      (make deploy-sepolia)
  *
- * Base Sepolia / Base (set USDC_ADDRESS to Circle's USDC):
- *   forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
- *
- * Optional: PLATFORM_WALLET. Defaults to deployer.
+ * Optional: PLATFORM_WALLET. Defaults to the CLI signer.
  */
 contract Deploy is Script {
     // Canonical Circle USDC (6 decimals).
@@ -23,14 +20,11 @@ contract Deploy is Script {
     address constant USDC_BASE_SEPOLIA = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
 
     function run() external returns (FreelanceEscrow, address token) {
-        uint256 deployerKey = vm.envOr(
-            "PRIVATE_KEY",
-            uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)
-        );
-        address deployer = vm.addr(deployerKey);
-        address platformWallet = vm.envOr("PLATFORM_WALLET", deployer);
+        // Empty startBroadcast() uses --account / --unlocked --sender from the CLI.
+        vm.startBroadcast();
 
-        vm.startBroadcast(deployerKey);
+        address deployer = msg.sender;
+        address platformWallet = vm.envOr("PLATFORM_WALLET", deployer);
 
         if (block.chainid == 31337) {
             MockUSDC mock = new MockUSDC();

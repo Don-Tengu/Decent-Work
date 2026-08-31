@@ -1,5 +1,7 @@
-# Base / shared configuration.
-# Local development overrides live in application-local.yml (profile: local).
+# Shared configuration. Environment overlays:
+#   application-local.yml  (profile local, default) — Anvil
+#   application-dev.yml    (profile dev)            — Base Sepolia
+#   application-prod.yml   (profile prod)           — Base
 spring:
   application:
     name: decent-work
@@ -46,8 +48,12 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 
-# Web3 — override via env or application-local.yml for Anvil/Sepolia
+# Web3 binding — one chain per process.
+# Environment (local|dev|prod) picks the chain; payment token is separate.
+# Add USDT later as extra token-* keys or a tokens map; do not add new Spring profiles for coins.
 web3:
+  family: ${WEB3_FAMILY:evm}
+  chain-key: ${WEB3_CHAIN_KEY:anvil}
   provider-url: ${WEB3_PROVIDER_URL:http://127.0.0.1:8545}
   escrow-contract-address: ${ESCROW_CONTRACT_ADDRESS:0x0000000000000000000000000000000000000000}
   chain-id: ${WEB3_CHAIN_ID:31337}

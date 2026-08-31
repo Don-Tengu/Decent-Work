@@ -1,0 +1,40 @@
+# Production profile — Base mainnet (chain 8453), Circle USDC.
+# Activate: SPRING_PROFILES_ACTIVE=prod
+# Required env: DATABASE_URL, DATABASE_USERNAME, DATABASE_PASSWORD,
+#               JWT_SECRET, ESCROW_CONTRACT_ADDRESS
+# Optional env: WEB3_PROVIDER_URL (use a reliable Base RPC in prod, not the public default).
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  graphql:
+    graphiql:
+      enabled: false
+    schema:
+      printer:
+        enabled: false
+
+web3:
+  family: evm
+  chain-key: base
+  provider-url: ${WEB3_PROVIDER_URL:https://mainnet.base.org}
+  chain-id: ${WEB3_CHAIN_ID:8453}
+  escrow-contract-address: ${ESCROW_CONTRACT_ADDRESS}
+  token-address: ${WEB3_TOKEN_ADDRESS:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913}
+  token-symbol: USDC
+  token-decimals: 6
+  platform-fee-percent: ${PLATFORM_FEE_PERCENT:5}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+logging:
+  level:
+    root: warn
+    com.web3.freelance: info

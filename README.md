@@ -92,14 +92,28 @@ See `docs/payments/` and `smart-contracts/README.md`.
 
 Align them before `docker-compose up` + `./mvnw spring-boot:run`, or point the app at an existing local Postgres that matches `application-local.yml`.
 
-Backend config is split:
+Backend config is split by **app environment** (not by token). Each process talks to one chain:
 
-| File | Role |
-|------|------|
-| `application.yml` | Shared base (env placeholders, safe defaults) |
-| `application-local.yml` | Local profile: DB credentials, JWT secret, GraphiQL, verbose security logs, Anvil web3 defaults |
+| File | Profile | Chain | Token |
+|------|---------|-------|-------|
+| `application.yml` | shared | placeholders | — |
+| `application-local.yml` | `local` (default) | Anvil | MockUSDC |
+| `application-dev.yml` | `dev` | Base Sepolia | Circle USDC |
+| `application-prod.yml` | `prod` | Base | Circle USDC |
 
-`local` is active by default (`SPRING_PROFILES_ACTIVE` defaults to `local`). Override with e.g. `SPRING_PROFILES_ACTIVE=prod`.
+```bash
+SPRING_PROFILES_ACTIVE=local   # default
+SPRING_PROFILES_ACTIVE=dev
+SPRING_PROFILES_ACTIVE=prod    # requires JWT_SECRET + ESCROW_CONTRACT_ADDRESS
+```
+
+Frontend chain catalog is `src/config/chains.js`; token catalog is `src/config/tokens.js` (USDC only for now). Env files pick the chain + escrow instance:
+
+| File | Command | Chain |
+|------|---------|-------|
+| `.env.development` | `npm run dev` | Anvil |
+| `.env.sepolia` | `npm run dev:sepolia` | Base Sepolia |
+| `.env.production` | `npm run build` | Base |
 
 ### 2. Start infrastructure
 
@@ -140,28 +154,22 @@ forge test
 # Terminal A — local chain
 anvil
 
-# Terminal B — deploy
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url http://127.0.0.1:8545 \
-  --broadcast \
-  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+# Terminal B — deploy (Anvil unlocked account #0, no private key file)
+make deploy-local
 ```
 
-Then set env to the deployed **escrow** and **USDC** addresses (Anvil prints both):
+Local Anvil defaults already live in `application-local.yml` and `frontend/.env.development` (addresses from `make deploy-local` on a fresh Anvil). If you redeploy, override:
 
 ```bash
 export ESCROW_CONTRACT_ADDRESS=0x...
-export WEB3_TOKEN_ADDRESS=0x...
-export WEB3_PROVIDER_URL=http://127.0.0.1:8545
-export WEB3_CHAIN_ID=31337
+export WEB3_TOKEN_ADDRESS=0x...   # MockUSDC on Anvil; optional on Base (Circle USDC is in the profile)
 
-# frontend/.env.local
-VITE_CHAIN_KEY=anvil
+# frontend/.env.development.local
 VITE_ESCROW_ADDRESS=0x...
-VITE_TOKEN_ADDRESS=0x...
 ```
 
-See `smart-contracts/README.md` for Base Sepolia (`VITE_CHAIN_KEY=base-sepolia`) and Base (`base`).
+Dev (Base Sepolia): `SPRING_PROFILES_ACTIVE=dev` + `npm run dev:sepolia`, set `ESCROW_CONTRACT_ADDRESS` / `VITE_ESCROW_ADDRESS` after that deploy.  
+Prod (Base): `SPRING_PROFILES_ACTIVE=prod` + `npm run build`.
 
 ## Main app routes
 

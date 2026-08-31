@@ -28,25 +28,17 @@ forge test -vv
 
 # Local chain
 anvil
+make deploy-local          # Anvil unlocked account #0 — no private key file
 
-# Deploy to Anvil (default account #0)
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url http://127.0.0.1:8545 \
-  --broadcast \
-  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+# One-time: encrypt a deployer key into the OS keystore (not the repo)
+cast wallet import evm-dev --interactive
+cast wallet list
 
-# Base Sepolia
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url $BASE_SEPOLIA_RPC_URL \
-  --broadcast \
-  --private-key $PRIVATE_KEY
-
-# Base mainnet
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url $BASE_RPC_URL \
-  --broadcast \
-  --private-key $PRIVATE_KEY
+# Base Sepolia / Base — prompts for keystore password
+make deploy-sepolia        # ACCOUNT=evm-dev
 ```
+
+Do not pass `--private-key` or put keys in `.env`. Hardware wallet: `forge script ... --ledger --sender 0x...`.
 
 Optional: `PLATFORM_WALLET=0x...` for the fee recipient (defaults to deployer).  
 Optional: `USDC_ADDRESS=0x...` to override Circle defaults on Base / Base Sepolia.

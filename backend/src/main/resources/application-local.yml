@@ -30,12 +30,17 @@ spring:
 server:
   port: 8080
 
-# Foundry Anvil defaults — set ESCROW_CONTRACT_ADDRESS after forge deploy
+# Anvil (chain 31337). Addresses match `make deploy-local` on a fresh Anvil:
+#   MockUSDC         = first CREATE (nonce 0)
+#   FreelanceEscrow  = CREATE after 3 mints (nonce 4)
+# Restart Anvil → redeploy → update if nonces differ.
 web3:
+  family: evm
+  chain-key: anvil
   provider-url: ${WEB3_PROVIDER_URL:http://127.0.0.1:8545}
-  escrow-contract-address: ${ESCROW_CONTRACT_ADDRESS:0x5FbDB2315678afecb367f032d93F642f64180aa3}
+  escrow-contract-address: ${ESCROW_CONTRACT_ADDRESS:0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9}
   chain-id: ${WEB3_CHAIN_ID:31337}
-  token-address: ${WEB3_TOKEN_ADDRESS:}
+  token-address: ${WEB3_TOKEN_ADDRESS:0x5FbDB2315678afecb367f032d93F642f64180aa3}
   token-symbol: ${WEB3_TOKEN_SYMBOL:USDC}
   token-decimals: ${WEB3_TOKEN_DECIMALS:6}
   platform-fee-percent: ${PLATFORM_FEE_PERCENT:5}
