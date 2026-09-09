@@ -47,11 +47,20 @@ export const formatHourlyRate = (rate, currency = 'USD') => {
     return null;
   }
 
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-  }).format(amount);
+  const isoCurrency = currency === 'USDC' || currency === 'USDT' || String(currency).length !== 3
+    ? 'USD'
+    : currency;
+
+  let formatted;
+  try {
+    formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: isoCurrency,
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    }).format(amount);
+  } catch {
+    formatted = `${amount} ${currency}`;
+  }
 
   return `${formatted}/hr`;
 };

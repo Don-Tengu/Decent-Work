@@ -28,6 +28,12 @@ import { formatBudgetLabel, formatCurrency } from './utils.jsx';
 import { getDisplayName } from '@/utils/user.js';
 import { fundEscrow, netAfterFee, releaseEscrow } from '@/utils/escrow.js';
 import { WEB3_CONFIG } from '@/config/web3.js';
+import {
+  addressesEqual,
+  getWalletAddress,
+  shortenAddress,
+  subscribeToWalletAccounts,
+} from '@/utils/web3.js';
 
 const pageAccents = [
   {
@@ -94,6 +100,7 @@ const ProposalsPage = () => {
   const [actionError, setActionError] = React.useState(null);
   const [actionLoading, setActionLoading] = React.useState(false);
   const [actionMessage, setActionMessage] = React.useState('');
+  const [liveWallet, setLiveWallet] = React.useState(null);
   const lastActionRef = React.useRef(null);
 
   const { data: jobData, loading: loadingJob, error: jobError } = useQuery(GET_JOB, {
@@ -273,6 +280,38 @@ const ProposalsPage = () => {
               ? 'Approve & release'
               : 'Release payment';
 
+  const signingAction = pendingAction?.type;
+  const needsWalletGuard =
+    signingAction === 'fund' || (signingAction === 'release' && isOnChainPayment);
+  const expectedSigningAddress =
+    signingAction === 'release' && payment?.clientWallet
+      ? payment.clientWallet
+      : user?.walletAddress;
+  const walletMatched = addressesEqual(liveWallet, expectedSigningAddress);
+  const confirmDisabled = needsWalletGuard && !walletMatched;
+
+  React.useEffect(() => {
+    if (!needsWalletGuard) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    getWalletAddress().then((address) => {
+      if (!cancelled) {
+        setLiveWallet(address);
+      }
+    });
+
+    const unsubscribe = subscribeToWalletAccounts((address) => {
+      setLiveWallet(address);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [needsWalletGuard]);
+
   const handleConfirm = async () => {
     if (!pendingAction) {
       return;
@@ -290,6 +329,9 @@ const ProposalsPage = () => {
         if (!payment?.id) {
           throw new Error('No payment record found for this contract');
         }
+        if (!user?.walletAddress) {
+          throw new Error('Connect your wallet on the dashboard before funding escrow.');
+        }
         const freelancerWallet = pendingAction.bid.freelancer?.walletAddress;
         if (!freelancerWallet) {
           throw new Error('Freelancer must connect a wallet before escrow can be funded');
@@ -298,6 +340,7 @@ const ProposalsPage = () => {
           jobId,
           freelancerAddress: freelancerWallet,
           amount: pendingAction.bid.amount,
+          expectedClientAddress: user.walletAddress,
         });
         await confirmEscrowFunding({
           variables: { paymentId: payment.id, transactionHash: txHash },
@@ -310,7 +353,10 @@ const ProposalsPage = () => {
           if (!payment.onChainEscrowId) {
             throw new Error('Missing on-chain escrow id — fund escrow first');
           }
-          const { txHash } = await releaseEscrow({ escrowId: payment.onChainEscrowId });
+          const { txHash } = await releaseEscrow({
+            escrowId: payment.onChainEscrowId,
+            expectedClientAddress: payment.clientWallet || user?.walletAddress,
+          });
           await confirmPaymentRelease({
             variables: { paymentId: payment.id, transactionHash: txHash },
           });
@@ -666,10 +712,45 @@ const ProposalsPage = () => {
         confirmLabel={confirmLabel}
         colorPalette={actionType === 'requestChanges' ? 'orange' : 'green'}
         loading={actionLoading}
+        confirmDisabled={confirmDisabled}
         error={actionError}
         onConfirm={handleConfirm}
         onClose={closeConfirm}
       >
+        {needsWalletGuard ? (
+          <VStack
+            align="stretch"
+            gap={1}
+            p={3}
+            borderRadius="14px"
+            border="1px solid"
+            borderColor={
+              walletMatched ? 'rgba(74, 222, 128, 0.28)' : 'rgba(252, 211, 77, 0.35)'
+            }
+            bg={walletMatched ? 'rgba(20, 83, 45, 0.22)' : 'rgba(113, 63, 18, 0.28)'}
+          >
+            <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+              Bound wallet:{' '}
+              <Text as="span" color="white" fontFamily="mono">
+                {expectedSigningAddress
+                  ? shortenAddress(expectedSigningAddress)
+                  : 'not connected'}
+              </Text>
+            </Text>
+            <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+              MetaMask:{' '}
+              <Text as="span" color="white" fontFamily="mono">
+                {liveWallet ? shortenAddress(liveWallet) : 'not connected'}
+              </Text>
+              {walletMatched ? ' · matched' : ' · switch to the bound account'}
+            </Text>
+            {!expectedSigningAddress ? (
+              <Text color="orange.200" fontSize="sm">
+                Connect a wallet on the dashboard first.
+              </Text>
+            ) : null}
+          </VStack>
+        ) : null}
         {actionType === 'requestChanges' ? (
           <Field.Root>
             <Field.Label color="rgba(226, 232, 240, 0.72)" fontSize="sm">

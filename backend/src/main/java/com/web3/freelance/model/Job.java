@@ -83,7 +83,7 @@ public class Job {
     @Column(precision = 12, scale = 2)
     private BigDecimal fixedBudget;
 
-    @Column(nullable = false, length = 3)
+    @Column(nullable = false, length = 8)
     @Builder.Default
     private String currencyCode = "USDC";
 

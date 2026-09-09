@@ -17,6 +17,15 @@ export const setParamList = (searchParams, key, values) => {
   searchParams.delete(key);
 };
 
+/** Intl.NumberFormat only accepts ISO 4217 (USD). Stablecoins use USD formatting. */
+const intlCurrencyFor = (currency) => {
+  const code = String(currency || 'USD').trim().toUpperCase();
+  if (code === 'USDC' || code === 'USDT' || code.length !== 3) {
+    return 'USD';
+  }
+  return code;
+};
+
 export const formatCurrency = (value, currency = 'USD') => {
   const amount = Number(value);
 
@@ -24,20 +33,20 @@ export const formatCurrency = (value, currency = 'USD') => {
     return '';
   }
 
-  const isoCurrency = currency === 'USDC' || currency === 'USDT' ? 'USD' : currency;
+  const code = String(currency || 'USD').trim().toUpperCase();
 
-  if (isoCurrency === 'ETH') {
+  if (code === 'ETH') {
     return `${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)} ETH`;
   }
 
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: isoCurrency,
+      currency: intlCurrencyFor(code),
       maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
     }).format(amount);
   } catch {
-    return `${amount} ${currency}`;
+    return `${amount} ${code}`;
   }
 };
 

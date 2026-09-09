@@ -15,6 +15,7 @@ const ConfirmDialog = ({
   colorPalette = 'green',
   headerBadge,
   loading = false,
+  confirmDisabled = false,
   error,
   children,
   onConfirm,
@@ -87,6 +88,7 @@ const ConfirmDialog = ({
               colorPalette={colorPalette}
               fontWeight="bold"
               loading={loading}
+              disabled={confirmDisabled}
               onClick={onConfirm}
             >
               {confirmLabel}

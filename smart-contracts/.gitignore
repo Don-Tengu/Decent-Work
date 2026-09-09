@@ -2,6 +2,7 @@
 cache/
 out/
 broadcast/
+.anvil-state.json
 
 # Dotenv
 .env

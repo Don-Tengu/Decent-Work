@@ -20,6 +20,13 @@ export const addressesEqual = (a, b) => {
   return Boolean(left) && left === right;
 };
 
+export const shortenAddress = (address) => {
+  if (!address || address.length < 12) {
+    return address || '';
+  }
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+};
+
 /**
  * Ask MetaMask to (re)open the account permission UI.
  * Needed when the site is already connected — eth_requestAccounts alone is silent.

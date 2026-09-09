@@ -23,6 +23,7 @@ import {
 } from '../components/ui/buttonStyles.js';
 import { inputStyles } from './post-job/styles.js';
 import { getFreelancerWorkFlags } from './jobs/paymentActions.js';
+import { formatCurrency } from './jobs/utils.jsx';
 
 const pageAccents = [
   {
@@ -50,27 +51,17 @@ const BID_SORT_RANK = {
   REJECTED: 3,
 };
 
-const formatMoney = (amount, currency = 'USD') =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: Number(amount) % 1 === 0 ? 0 : 2,
-  }).format(Number(amount));
-
 const formatJobBudget = (job) => {
   const currency = job.currencyCode || 'USD';
 
   if (job.budgetType === 'HOURLY') {
-    const min = Number(job.hourlyRateMin);
-    const max = Number(job.hourlyRateMax);
-    return job.hourlyRateMin != null && job.hourlyRateMax != null && Number.isFinite(min) && Number.isFinite(max)
-      ? `${formatMoney(min, currency)} - ${formatMoney(max, currency)}/hr`
-      : 'Hourly budget not set';
+    const min = formatCurrency(job.hourlyRateMin, currency);
+    const max = formatCurrency(job.hourlyRateMax, currency);
+    return min && max ? `${min} - ${max}/hr` : 'Hourly budget not set';
   }
 
   if (job.budgetType === 'FIXED') {
-    const fixedBudget = Number(job.fixedBudget);
-    return job.fixedBudget != null && Number.isFinite(fixedBudget) ? formatMoney(fixedBudget, currency) : 'Fixed budget not set';
+    return formatCurrency(job.fixedBudget, currency) || 'Fixed budget not set';
   }
 
   return 'Budget not set';
@@ -175,7 +166,7 @@ const MyBidCard = ({ bid, onAccept, onDecline, onSubmitWork }) => {
                 Your bid
               </Text>
               <Text color="white" fontWeight="semibold">
-                {formatMoney(bid.amount, bid.job.currencyCode || 'USD')}
+                {formatCurrency(bid.amount, bid.job.currencyCode || 'USD') || bid.amount}
               </Text>
             </Box>
           </HStack>

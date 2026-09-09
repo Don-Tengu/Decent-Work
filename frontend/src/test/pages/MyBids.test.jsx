@@ -85,6 +85,30 @@ describe('MyBids', () => {
     expect(screen.getByRole('link', { name: /view job/i })).toHaveAttribute('href', '/jobs/job-1');
   });
 
+  it('formats USDC amounts without crashing NumberFormat', async () => {
+    renderMyBids([
+      myBidsMock([
+        makeBid({
+          job: {
+            __typename: 'Job',
+            id: 'job-1',
+            title: 'Smart Contract Audit',
+            status: 'OPEN',
+            budgetType: 'FIXED',
+            hourlyRateMin: null,
+            hourlyRateMax: null,
+            fixedBudget: 1500,
+            currencyCode: 'USDC',
+          },
+        }),
+      ]),
+    ]);
+
+    expect(await screen.findByText('Smart Contract Audit')).toBeInTheDocument();
+    expect(screen.getByText('$1,200')).toBeInTheDocument();
+    expect(screen.getByText(/job budget: \$1,500/i)).toBeInTheDocument();
+  });
+
   it('flags an accepted proposal as an active contract', async () => {
     renderMyBids([
       myBidsMock([

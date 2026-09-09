@@ -2,6 +2,7 @@ import { BrowserProvider, Contract, Interface, parseUnits, formatUnits } from 'e
 import escrowArtifact from '@/contracts/FreelanceEscrow.json';
 import erc20Artifact from '@/contracts/erc20.json';
 import { WEB3_CONFIG, isEscrowConfigured } from '@/config/web3.js';
+import { addressesEqual, shortenAddress } from '@/utils/web3.js';
 
 const getEscrowInterface = () => new Interface(escrowArtifact.abi);
 
@@ -52,7 +53,20 @@ export const ensureCorrectChain = async (provider) => {
   }
 };
 
-export const getBrowserSigner = async () => {
+export const requireSignerAddress = (liveAddress, expectedAddress) => {
+  if (!expectedAddress) {
+    throw new Error('Connect your wallet on the dashboard before signing this transaction.');
+  }
+  if (!addressesEqual(liveAddress, expectedAddress)) {
+    const want = shortenAddress(expectedAddress);
+    const got = liveAddress ? shortenAddress(liveAddress) : 'none';
+    throw new Error(
+      `MetaMask is ${got}, but this action must be signed by ${want}. Switch MetaMask to that account (or reconnect it on the dashboard) before continuing.`
+    );
+  }
+};
+
+export const getBrowserSigner = async (expectedAddress) => {
   if (!window.ethereum) {
     throw new Error('MetaMask is not installed');
   }
@@ -60,23 +74,32 @@ export const getBrowserSigner = async () => {
   await provider.send('eth_requestAccounts', []);
   await ensureCorrectChain(provider);
   const signer = await provider.getSigner();
-  return { provider, signer, address: await signer.getAddress() };
+  const address = await signer.getAddress();
+  if (expectedAddress) {
+    requireSignerAddress(address, expectedAddress);
+  }
+  return { provider, signer, address };
 };
 
 const toAtomic = (amount) => parseUnits(String(amount), WEB3_CONFIG.tokenDecimals);
 
 /**
  * Approve USDC then createEscrow(jobId, freelancer, token, amount).
+ * `expectedClientAddress` must be the hiring client's bound wallet — checked
+ * before approve and again before createEscrow (user can switch in MetaMask).
  */
-export const fundEscrow = async ({ jobId, freelancerAddress, amount }) => {
-  const { signer } = await getBrowserSigner();
-  const escrow = getEscrowContract(signer);
+export const fundEscrow = async ({ jobId, freelancerAddress, amount, expectedClientAddress }) => {
+  const { signer, provider } = await getBrowserSigner(expectedClientAddress);
   const token = getPaymentToken(signer);
   const atomic = toAtomic(amount);
 
   const approveTx = await token.approve(WEB3_CONFIG.escrowAddress, atomic);
   await approveTx.wait();
 
+  const nextSigner = await provider.getSigner();
+  requireSignerAddress(await nextSigner.getAddress(), expectedClientAddress);
+
+  const escrow = getEscrowContract(nextSigner);
   const tx = await escrow.createEscrow(
     BigInt(jobId),
     freelancerAddress,
@@ -106,8 +129,8 @@ export const fundEscrow = async ({ jobId, freelancerAddress, amount }) => {
   return { txHash: receipt.hash || tx.hash, escrowId };
 };
 
-export const releaseEscrow = async ({ escrowId }) => {
-  const { signer } = await getBrowserSigner();
+export const releaseEscrow = async ({ escrowId, expectedClientAddress }) => {
+  const { signer } = await getBrowserSigner(expectedClientAddress);
   const contract = getEscrowContract(signer);
   const tx = await contract.releasePayment(BigInt(escrowId));
   const receipt = await tx.wait();

@@ -26,9 +26,12 @@ forge install
 forge build
 forge test -vv
 
-# Local chain
-anvil
-make deploy-local          # Anvil unlocked account #0 — no private key file
+# Local chain (state saved to .anvil-state.json; Ctrl+C to dump)
+make anvil
+make deploy-local          # only on a blank chain / after `make anvil-fresh`
+
+# Inspect escrow / MockUSDC on Anvil (cast call + logs)
+# See anvil-inspect.md
 
 # One-time: encrypt a deployer key into the OS keystore (not the repo)
 cast wallet import evm-dev --interactive
