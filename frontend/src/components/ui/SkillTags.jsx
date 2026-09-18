@@ -9,7 +9,7 @@ const SkillTags = ({ skills = [], max, emptyLabel }) => {
 
   if (!cleaned.length) {
     return emptyLabel ? (
-      <Text color="rgba(226, 232, 240, 0.5)" fontSize="sm">
+      <Text color="fg.subtle" fontSize="sm">
         {emptyLabel}
       </Text>
     ) : null;
@@ -23,14 +23,13 @@ const SkillTags = ({ skills = [], max, emptyLabel }) => {
       {visible.map((skill) => (
         <Badge
           key={skill}
-          borderRadius="full"
+          borderRadius="10px"
           px={3}
           py={1}
-          bg="rgba(148, 163, 184, 0.12)"
-          color="rgba(226, 232, 240, 0.86)"
-          border="1px solid"
-          borderColor="rgba(148, 163, 184, 0.2)"
-          fontWeight="medium"
+          bg="paper.200"
+          color="ink.900"
+          border="0"
+          fontWeight="semibold"
           textTransform="none"
         >
           {skill}
@@ -38,13 +37,12 @@ const SkillTags = ({ skills = [], max, emptyLabel }) => {
       ))}
       {overflow > 0 ? (
         <Badge
-          borderRadius="full"
+          borderRadius="10px"
           px={3}
           py={1}
-          bg="transparent"
-          color="rgba(226, 232, 240, 0.6)"
-          border="1px solid"
-          borderColor="rgba(148, 163, 184, 0.2)"
+          bg="paper.200"
+          color="ink.600"
+          border="0"
           fontWeight="medium"
           aria-label={`${overflow} more skills`}
           title={cleaned.slice(visible.length).join(', ')}

@@ -10,12 +10,13 @@ import {
 } from '../taxonomyFilters.js';
 
 const checkboxStyles = {
-  borderColor: 'rgba(148, 163, 184, 0.42)',
-  bg: 'rgba(15, 23, 42, 0.58)',
+  borderColor: 'border.default',
+  bg: 'bg.panel',
+  color: 'fg.default',
 };
 
 const optionLabelStyles = {
-  color: 'rgba(248, 250, 252, 0.9)',
+  color: 'fg.default',
   fontSize: 'sm',
   fontWeight: 'semibold',
   overflow: 'hidden',
@@ -50,13 +51,13 @@ const SearchInput = ({ value, onChange, onClear }) => (
     px={3}
     gap={2}
     border="1px solid"
-    borderColor="rgba(148, 163, 184, 0.28)"
-    borderRadius="14px"
-    bg="rgba(8, 15, 29, 0.76)"
-    color="rgba(226, 232, 240, 0.72)"
+    borderColor="border.default"
+    borderRadius="12px"
+    bg="bg.muted"
+    color="fg.muted"
     _focusWithin={{
-      borderColor: 'rgba(125, 211, 252, 0.54)',
-      boxShadow: '0 0 0 1px rgba(125, 211, 252, 0.16)',
+      borderColor: 'ink.900',
+      boxShadow: '0 0 0 1px #141413',
     }}
   >
     <Search size={16} />
@@ -70,11 +71,11 @@ const SearchInput = ({ value, onChange, onClear }) => (
       h="full"
       border="0"
       outline="0"
-      bg="transparent"
-      color="white"
+      bg="bg.muted"
+      color="fg.default"
       fontSize="sm"
-      _placeholder={{ color: 'rgba(226, 232, 240, 0.42)' }}
-      _focus={{ outline: 'none' }}
+      _placeholder={{ color: 'fg.subtle' }}
+      _focus={{ outline: 'none', bg: 'bg.muted' }}
     />
     {value ? (
       <Button
@@ -86,9 +87,9 @@ const SearchInput = ({ value, onChange, onClear }) => (
         boxSize="24px"
         p={0}
         borderRadius="full"
-        color="rgba(226, 232, 240, 0.68)"
+        color="fg.muted"
         onClick={onClear}
-        _hover={{ bg: 'transparent', color: 'cyan.100' }}
+        _hover={{ bg: 'transparent', color: 'fg.default' }}
       >
         <X size={14} />
       </Button>
@@ -161,16 +162,16 @@ const CategorySpecialtyFilter = ({
         justifyContent="space-between"
         variant="plain"
         border="1px solid"
-        borderColor={open ? 'rgba(125, 211, 252, 0.52)' : 'rgba(148, 163, 184, 0.24)'}
-        borderRadius="14px"
-        bg="rgba(8, 15, 29, 0.72)"
-        color="white"
+        borderColor="border.default"
+        borderRadius="12px"
+        bg="bg.canvas"
+        color="fg.default"
         px={3}
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         _hover={{
-          bg: 'rgba(8, 15, 29, 0.82)',
-          borderColor: 'rgba(125, 211, 252, 0.4)',
+          bg: 'bg.canvas',
+          borderColor: 'ink.900',
         }}
         _focusVisible={{
           outline: '2px solid',
@@ -201,10 +202,10 @@ const CategorySpecialtyFilter = ({
           maxH="380px"
           p={3}
           border="1px solid"
-          borderColor="rgba(148, 163, 184, 0.22)"
-          borderRadius="18px"
-          bg="rgba(10, 18, 32, 0.98)"
-          boxShadow="0 22px 60px rgba(2, 6, 23, 0.48)"
+          borderColor="border.default"
+          borderRadius="12px"
+          bg="bg.panel"
+          boxShadow="0 12px 32px rgba(20, 20, 19, 0.08)"
           overflow="hidden"
         >
           <VStack align="stretch" gap={3}>
@@ -220,13 +221,13 @@ const CategorySpecialtyFilter = ({
             >
               {visibleGroups.length ? visibleGroups.map((group) => (
                 <VStack key={group.id} align="stretch" gap={2}>
-                  <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm">
+                  <Text color="fg.muted" fontSize="sm">
                     {group.name}
                   </Text>
                   {group.showAllOption ? (
                     <Checkbox.Root
+                      variant="outline"
                       checked={selectedCategorySet.has(group.id)}
-                      colorPalette="cyan"
                       onCheckedChange={(details) => handleCategoryToggle(group, Boolean(details.checked))}
                     >
                       <Checkbox.HiddenInput />
@@ -241,8 +242,8 @@ const CategorySpecialtyFilter = ({
                   {group.specialties.map((specialty) => (
                     <Checkbox.Root
                       key={specialty.id}
+                      variant="outline"
                       checked={selectedSpecialtySet.has(specialty.id)}
-                      colorPalette="cyan"
                       onCheckedChange={(details) => handleSpecialtyToggle(group, specialty, Boolean(details.checked))}
                     >
                       <Checkbox.HiddenInput />
@@ -256,7 +257,7 @@ const CategorySpecialtyFilter = ({
                   ))}
                 </VStack>
               )) : (
-                <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" py={3}>
+                <Text color="fg.muted" fontSize="sm" py={3}>
                   No matching categories or specialties.
                 </Text>
               )}

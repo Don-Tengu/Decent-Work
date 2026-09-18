@@ -19,7 +19,7 @@ import JobsPageState from './components/JobsPageState.jsx';
 import JobResultCard from './components/JobResultCard.jsx';
 import JobsResultsToolbar from './components/JobsResultsToolbar.jsx';
 import JobsSearchBar from './components/JobsSearchBar.jsx';
-import { JOBS_PAGE_SIZE, SEARCH_PARAM_KEYS } from './constants.js';
+import { BUDGET_TYPE_FILTERS, JOBS_PAGE_SIZE, SEARCH_PARAM_KEYS } from './constants.js';
 import { addSavedJobIdToCache, removeSavedJobIdFromCache } from './savedJobsCache.js';
 import { getParamList, setParamList } from './utils.jsx';
 
@@ -53,7 +53,8 @@ const JobsPage = () => {
   const selectedCategoryIds = getParamList(searchParams, SEARCH_PARAM_KEYS.categories);
   const selectedSpecialtyIds = getParamList(searchParams, SEARCH_PARAM_KEYS.specialties);
   const selectedExperiences = getParamList(searchParams, SEARCH_PARAM_KEYS.experience);
-  const selectedBudgetTypes = getParamList(searchParams, SEARCH_PARAM_KEYS.budgetType);
+  const selectedBudgetTypes = getParamList(searchParams, SEARCH_PARAM_KEYS.budgetType)
+    .filter((value) => BUDGET_TYPE_FILTERS.some((filter) => filter.value === value));
   const sort = searchParams.get(SEARCH_PARAM_KEYS.sort) || 'BEST_MATCH';
   const pageIndex = getPageIndex(searchParams);
   const [searchDraft, setSearchDraft] = React.useState(query);
@@ -257,7 +258,7 @@ const JobsPage = () => {
                     onClear={handleClearSearch}
                   />
                 </Box>
-                <Text color="green.200" fontWeight="bold" px={2}>
+                <Text color="fg.muted" fontWeight="bold" px={2}>
                   Advanced search
                 </Text>
               </HStack>
@@ -325,7 +326,7 @@ const JobsPage = () => {
 const StackHeader = () => (
   <HStack justify="space-between" align={{ base: 'start', md: 'center' }} gap={4} flexWrap="wrap">
     <Box>
-      <Heading as="h1" size={{ base: 'xl', md: '2xl' }} color="white" letterSpacing="0" lineHeight="1.08">
+      <Heading as="h1" size={{ base: 'xl', md: '2xl' }} color="fg.default" letterSpacing="0" lineHeight="1.08">
         Search open jobs
       </Heading>
     </Box>

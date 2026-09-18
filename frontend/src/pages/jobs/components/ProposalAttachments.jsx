@@ -33,7 +33,7 @@ const ProposalAttachments = ({
           variant="outline"
           borderRadius="full"
           borderColor="rgba(226, 232, 240, 0.34)"
-          color="white"
+          color="fg.default"
           px={5}
           disabled={disabled || !hasFileSlots}
           onClick={handleAttachClick}
@@ -44,13 +44,13 @@ const ProposalAttachments = ({
             <span>Attach file</span>
           </HStack>
         </Button>
-        <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm">
+        <Text color="fg.muted" fontSize="sm">
           Up to {MAX_PROPOSAL_ATTACHMENTS} files, max 100MB each
         </Text>
       </HStack>
 
       {error ? (
-        <Text color="red.300" fontSize="sm" fontWeight="semibold" role="alert">
+        <Text color="red.700" fontSize="sm" fontWeight="semibold" role="alert">
           <HStack gap={2} align="center">
             <AlertCircle size={18} />
             <span>{error}</span>
@@ -88,7 +88,7 @@ const ProposalAttachments = ({
                 gap={4}
                 border="1px solid"
                 borderColor={isOversized ? 'rgba(248, 113, 113, 0.62)' : 'rgba(148, 163, 184, 0.2)'}
-                bg="rgba(15, 23, 42, 0.46)"
+                bg="bg.muted"
                 borderRadius="16px"
                 px={4}
                 py={3}
@@ -99,15 +99,15 @@ const ProposalAttachments = ({
                     borderRadius="full"
                     display="grid"
                     placeItems="center"
-                    bg="rgba(34, 211, 238, 0.12)"
-                    color="cyan.200"
+                    bg="bg.muted"
+                    color="fg.muted"
                     flex="0 0 auto"
                   >
                     <FileText size={18} />
                   </Box>
                   <Box minW="0">
                     <Text
-                      color="white"
+                      color="fg.default"
                       fontWeight="semibold"
                       overflow="hidden"
                       textOverflow="ellipsis"
@@ -125,7 +125,7 @@ const ProposalAttachments = ({
                   aria-label={`Remove ${file.name}`}
                   type="button"
                   variant="ghost"
-                  color="rgba(226, 232, 240, 0.72)"
+                  color="fg.muted"
                   borderRadius="full"
                   minW="36px"
                   w="36px"

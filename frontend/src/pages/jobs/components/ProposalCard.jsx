@@ -62,7 +62,7 @@ const ProposalCard = ({
       opacity={subdued ? 0.78 : 1}
       borderColor={
         emphasis
-          ? 'rgba(34, 211, 238, 0.35)'
+          ? 'border.default'
           : subdued
             ? 'rgba(148, 163, 184, 0.12)'
             : undefined
@@ -90,16 +90,16 @@ const ProposalCard = ({
             borderRadius="16px"
             cursor="pointer"
             transition="background 0.18s ease"
-            _hover={{ bg: 'rgba(125, 211, 252, 0.08)' }}
-            _focusVisible={{ outline: '2px solid', outlineColor: 'cyan.300', outlineOffset: '2px' }}
+            _hover={{ bg: 'paper.200' }}
+            _focusVisible={{ outline: '2px solid', outlineColor: 'ink.900', outlineOffset: '2px' }}
           >
             <UserAvatar user={freelancer} size="lg" flex="0 0 auto" />
             <Box minW="0">
-              <Text color="white" fontWeight="bold" fontSize="lg" lineHeight="1.25">
+              <Text color="fg.default" fontWeight="bold" fontSize="lg" lineHeight="1.25">
                 {name}
               </Text>
               {meta ? (
-                <Text color="rgba(226, 232, 240, 0.56)" fontSize="sm">
+                <Text color="fg.muted" fontSize="sm">
                   {meta}
                 </Text>
               ) : null}
@@ -109,7 +109,7 @@ const ProposalCard = ({
           <Box>
             <FieldLabel mb={1.5}>Proposal</FieldLabel>
             <Text
-              color="rgba(226, 232, 240, 0.78)"
+              color="fg.muted"
               lineHeight="1.7"
               overflowWrap="anywhere"
               css={{
@@ -155,7 +155,7 @@ const ProposalCard = ({
               {isAccepted ? 'View contract details' : 'View proposal details'}
             </Button>
             {attachmentCount > 0 ? (
-              <HStack gap={1.5} color="rgba(226, 232, 240, 0.56)" fontSize="sm">
+              <HStack gap={1.5} color="fg.muted" fontSize="sm">
                 <Paperclip size={14} />
                 <Text>
                   {attachmentCount} {attachmentCount === 1 ? 'attachment' : 'attachments'}
@@ -166,21 +166,30 @@ const ProposalCard = ({
         </VStack>
 
         <VStack align={{ base: 'start', lg: 'end' }} gap={3} minW="0">
-          <Badge colorPalette="green" borderRadius="full" px={3} py={1} fontSize="md">
+          <Badge
+            variant="outline"
+            color="fg.default"
+            borderColor="border.default"
+            bg="transparent"
+            borderRadius="8px"
+            px={3}
+            py={1}
+            fontSize="md"
+          >
             {formatCurrency(bid.amount, currencyCode) || `${bid.amount}`}
           </Badge>
-          <HStack gap={1.5} color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+          <HStack gap={1.5} color="fg.muted" fontSize="sm">
             <Clock size={14} />
             <Text>{formatDeliveryTime(bid.deliveryTime)}</Text>
           </HStack>
           {hourlyRate ? (
-            <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+            <Text color="fg.muted" fontSize="sm">
               {hourlyRate}
             </Text>
           ) : null}
           <BidStatusBadge status={displayStatus} />
           {paymentNote ? (
-            <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" fontWeight="medium">
+            <Text color="fg.muted" fontSize="sm" fontWeight="medium">
               {paymentNote}
             </Text>
           ) : null}

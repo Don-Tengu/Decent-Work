@@ -12,7 +12,6 @@ export const EXPERIENCE_FILTERS = [
 ];
 
 export const BUDGET_TYPE_FILTERS = [
-  { value: 'HOURLY', label: 'Hourly' },
   { value: 'FIXED', label: 'Fixed price' },
   { value: 'NOT_READY', label: 'Budget TBD' },
 ];

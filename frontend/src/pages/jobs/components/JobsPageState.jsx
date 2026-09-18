@@ -11,10 +11,10 @@ const JobsPageState = ({ title, description, tone = 'default' }) => (
     borderColor={tone === 'error' ? 'rgba(248, 113, 113, 0.3)' : undefined}
   >
     <VStack gap={3}>
-      <Heading size="md" color="white">
+      <Heading size="md" color="fg.default">
         {title}
       </Heading>
-      <Text color={tone === 'error' ? 'red.200' : 'rgba(226, 232, 240, 0.68)'} maxW="560px">
+      <Text color={tone === 'error' ? 'red.700' : 'fg.muted'} maxW="560px">
         {description}
       </Text>
     </VStack>

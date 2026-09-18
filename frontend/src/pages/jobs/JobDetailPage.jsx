@@ -216,7 +216,7 @@ const JobDetailPage = () => {
         ) : null}
 
         {job?.status && job.status !== 'OPEN' && myBid?.status !== 'ACCEPTED' ? (
-          <Text color="orange.200" fontSize="sm" textAlign="center">
+          <Text color="fg.muted" fontSize="sm" textAlign="center">
             This job is currently {job.status.toLowerCase().replace('_', ' ')}. Proposal actions should stay disabled.
           </Text>
         ) : null}
@@ -233,7 +233,7 @@ const JobDetailPage = () => {
         onClose={closeSubmitWork}
       >
         <Field.Root>
-          <Field.Label color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+          <Field.Label color="fg.muted" fontSize="sm">
             Note to the client (optional)
           </Field.Label>
           <Textarea

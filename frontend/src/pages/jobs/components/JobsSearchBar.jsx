@@ -11,13 +11,13 @@ const JobsSearchBar = ({ value, onChange, onSubmit, onClear }) => (
         px={4}
         gap={3}
         border="1px solid"
-        borderColor="rgba(148, 163, 184, 0.26)"
-        borderRadius="full"
-        bg="rgba(8, 15, 29, 0.72)"
-        color="rgba(226, 232, 240, 0.72)"
+        borderColor="border.default"
+        borderRadius="12px"
+        bg="bg.muted"
+        color="fg.muted"
         _focusWithin={{
-          borderColor: 'rgba(34, 211, 238, 0.52)',
-          boxShadow: '0 0 0 1px rgba(34, 211, 238, 0.28)',
+          borderColor: 'ink.900',
+          boxShadow: '0 0 0 1px #141413',
         }}
       >
         <Search size={20} />
@@ -32,12 +32,12 @@ const JobsSearchBar = ({ value, onChange, onSubmit, onClear }) => (
           h="full"
           border="0"
           outline="0"
-          bg="transparent"
-          color="white"
+          bg="bg.muted"
+          color="fg.default"
           fontWeight="medium"
           fontSize="sm"
-          _placeholder={{ color: 'rgba(226, 232, 240, 0.48)' }}
-          _focus={{ outline: 'none' }}
+          _placeholder={{ color: 'fg.subtle' }}
+          _focus={{ outline: 'none', bg: 'bg.muted' }}
         />
         {value ? (
           <Button
@@ -49,7 +49,7 @@ const JobsSearchBar = ({ value, onChange, onSubmit, onClear }) => (
             p={0}
             borderRadius="full"
             variant="ghost"
-            color="rgba(226, 232, 240, 0.72)"
+            color="fg.muted"
             onClick={onClear}
           >
             <X size={16} />

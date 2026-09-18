@@ -16,7 +16,7 @@ const ComingSoonSection = ({ label, icon: Icon, description }) => (
           px={3}
           py={1}
           bg="rgba(148, 163, 184, 0.12)"
-          color="rgba(226, 232, 240, 0.62)"
+          color="fg.muted"
           border="1px solid"
           borderColor="rgba(148, 163, 184, 0.2)"
           fontWeight="medium"
@@ -33,7 +33,7 @@ const ComingSoonSection = ({ label, icon: Icon, description }) => (
         borderColor="rgba(148, 163, 184, 0.22)"
         borderRadius="18px"
         p={{ base: 4, md: 5 }}
-        bg="rgba(15, 23, 42, 0.32)"
+        bg="bg.muted"
       >
         {Icon ? (
           <Box
@@ -42,13 +42,13 @@ const ComingSoonSection = ({ label, icon: Icon, description }) => (
             display="grid"
             placeItems="center"
             bg="rgba(148, 163, 184, 0.12)"
-            color="rgba(226, 232, 240, 0.7)"
+            color="fg.subtle"
             flex="0 0 auto"
           >
             <Icon size={22} />
           </Box>
         ) : null}
-        <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm" lineHeight="1.6">
+        <Text color="fg.muted" fontSize="sm" lineHeight="1.6">
           {description}
         </Text>
       </HStack>

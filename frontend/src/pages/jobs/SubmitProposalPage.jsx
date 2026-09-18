@@ -5,7 +5,7 @@ import { Badge, Box, Button, Field, Grid, HStack, Heading, Input, Text, Textarea
 import { ArrowLeft, CheckCircle2, ExternalLink, Info, SendHorizontal } from 'lucide-react';
 import { GET_JOB, GET_MY_BID_FOR_JOB, GET_MY_BIDS, PLACE_BID } from '@/graphql/queries.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { quietPillButtonStyles, subtlePillButtonStyles } from '../../components/ui/buttonStyles.js';
+import { greenSolidButtonStyles, quietPillButtonStyles, subtlePillButtonStyles } from '../../components/ui/buttonStyles.js';
 import { inputStyles } from '../post-job/styles.js';
 import PageShell from '../../components/ui/PageShell.jsx';
 import GlassPanel from '../../components/ui/GlassPanel.jsx';
@@ -67,10 +67,10 @@ const JobMetaRow = ({ label, value }) => (
     borderColor="rgba(148, 163, 184, 0.12)"
     _last={{ borderBottom: 'none' }}
   >
-    <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="0.04em">
+    <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="0.04em">
       {label}
     </Text>
-    <Text color="white" fontWeight="semibold" fontSize="sm" textAlign="right">
+    <Text color="fg.default" fontWeight="semibold" fontSize="sm" textAlign="right">
       {value}
     </Text>
   </HStack>
@@ -274,16 +274,16 @@ const SubmitProposalPage = () => {
       <PageShell accents={pageAccents} maxW="1280px" py={{ base: 5, md: 8 }} px={{ base: 4, lg: 8 }}>
         <GlassPanel variant="solid" borderRadius="24px" p={{ base: 6, md: 8 }}>
           <VStack align="stretch" gap={5}>
-            <HStack gap={3} color="green.200">
+            <HStack gap={3} color="fg.muted">
               <CheckCircle2 size={22} />
-              <Heading as="h1" size="lg" color="white" letterSpacing="0">
+              <Heading as="h1" size="lg" color="fg.default" letterSpacing="0">
                 Proposal submitted
               </Heading>
             </HStack>
-            <Text color="orange.200" fontSize="sm" lineHeight="1.7" role="alert">
+            <Text color="fg.muted" fontSize="sm" lineHeight="1.7" role="alert">
               {uploadWarning}
             </Text>
-            <Text color="rgba(226, 232, 240, 0.7)" fontSize="sm" lineHeight="1.7">
+            <Text color="fg.subtle" fontSize="sm" lineHeight="1.7">
               Your proposal is in review with the client. You can reach out to them to re-share any files
               that did not upload.
             </Text>
@@ -309,7 +309,7 @@ const SubmitProposalPage = () => {
             <ArrowLeft size={18} />
             Back to job
           </Button>
-          <Heading as="h1" size={{ base: '2xl', md: '3xl' }} color="white" letterSpacing="0">
+          <Heading as="h1" size={{ base: '2xl', md: '3xl' }} color="fg.default" letterSpacing="0">
             Submit a proposal
           </Heading>
         </Box>
@@ -323,7 +323,7 @@ const SubmitProposalPage = () => {
           >
             <VStack align="stretch" gap={3}>
               <Text
-                color="rgba(226, 232, 240, 0.78)"
+                color="fg.muted"
                 lineHeight="1.85"
                 whiteSpace="pre-line"
                 lineClamp={descExpanded ? undefined : 4}
@@ -339,7 +339,7 @@ const SubmitProposalPage = () => {
                     color="rgba(125, 211, 252, 0.95)"
                     fontSize="sm"
                     fontWeight="semibold"
-                    _hover={{ color: 'white' }}
+                    _hover={{ color: 'fg.default' }}
                   >
                     {descExpanded ? 'Show less' : 'Show more'}
                   </Box>
@@ -351,7 +351,7 @@ const SubmitProposalPage = () => {
                   color="rgba(125, 211, 252, 0.95)"
                   fontSize="sm"
                   fontWeight="semibold"
-                  _hover={{ color: 'white' }}
+                  _hover={{ color: 'fg.default' }}
                 >
                   <ExternalLink size={15} />
                   <Text>View job posting</Text>
@@ -360,7 +360,7 @@ const SubmitProposalPage = () => {
             </VStack>
 
             <Box
-              bg="rgba(15, 23, 42, 0.42)"
+              bg="bg.muted"
               border="1px solid"
               borderColor="rgba(148, 163, 184, 0.14)"
               borderRadius="16px"
@@ -377,7 +377,7 @@ const SubmitProposalPage = () => {
 
           {tags.length ? (
             <Box pt={6}>
-              <Text color="white" fontWeight="semibold" mb={3}>
+              <Text color="fg.default" fontWeight="semibold" mb={3}>
                 Skills and expertise
               </Text>
               <HStack gap={2} flexWrap="wrap">
@@ -389,7 +389,7 @@ const SubmitProposalPage = () => {
                     px={3}
                     py={1.5}
                     bg="rgba(148, 163, 184, 0.16)"
-                    color="rgba(248, 250, 252, 0.92)"
+                    color="fg.default"
                   >
                     {tag}
                   </Badge>
@@ -402,10 +402,10 @@ const SubmitProposalPage = () => {
         <GlassPanel variant="solid" borderRadius="24px" p={{ base: 5, md: 7 }}>
           <VStack align="stretch" gap={5}>
             <Box>
-              <Heading as="h2" size="md" color="white" letterSpacing="0">
+              <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
                 Terms
               </Heading>
-              <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm" mt={1}>
+              <Text color="fg.muted" fontSize="sm" mt={1}>
                 What is the rate you{'’'}d like to bid for this job?
               </Text>
             </Box>
@@ -417,22 +417,22 @@ const SubmitProposalPage = () => {
               flexWrap="wrap"
               px={4}
               py={3}
-              bg="rgba(15, 23, 42, 0.42)"
+              bg="bg.muted"
               border="1px solid"
               borderColor="rgba(148, 163, 184, 0.14)"
               borderRadius="14px"
             >
-              <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+              <Text color="fg.muted" fontSize="sm">
                 Client{'’'}s budget
               </Text>
-              <Text color="white" fontWeight="bold">
+              <Text color="fg.default" fontWeight="bold">
                 {formatBudgetLabel(job)}
               </Text>
             </HStack>
 
             <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={5}>
               <Field.Root invalid={Boolean(errors.amount)} required>
-                <Field.Label color="white" fontWeight="semibold">
+                <Field.Label color="fg.default" fontWeight="semibold">
                   {getAmountLabel(job)}
                 </Field.Label>
                 <Input
@@ -444,16 +444,16 @@ const SubmitProposalPage = () => {
                   {...fieldInputStyles(Boolean(errors.amount))}
                 />
                 {errors.amount ? (
-                  <Field.ErrorText color="red.300">{errors.amount}</Field.ErrorText>
+                  <Field.ErrorText color="red.700">{errors.amount}</Field.ErrorText>
                 ) : (
-                  <Field.HelperText color="rgba(226, 232, 240, 0.5)">
+                  <Field.HelperText color="fg.subtle">
                     Total amount the client will see on your proposal
                   </Field.HelperText>
                 )}
               </Field.Root>
 
               <Field.Root invalid={Boolean(errors.deliveryTime)} required>
-                <Field.Label color="white" fontWeight="semibold">
+                <Field.Label color="fg.default" fontWeight="semibold">
                   Delivery time in days
                 </Field.Label>
                 <Input
@@ -465,7 +465,7 @@ const SubmitProposalPage = () => {
                   {...fieldInputStyles(Boolean(errors.deliveryTime))}
                 />
                 {errors.deliveryTime ? (
-                  <Field.ErrorText color="red.300">{errors.deliveryTime}</Field.ErrorText>
+                  <Field.ErrorText color="red.700">{errors.deliveryTime}</Field.ErrorText>
                 ) : null}
               </Field.Root>
             </Grid>
@@ -481,17 +481,17 @@ const SubmitProposalPage = () => {
           <VStack align="stretch" gap={5}>
             <HStack justify="space-between" align="start" gap={4} flexWrap="wrap">
               <Box>
-                <Heading as="h2" size="md" color="white" letterSpacing="0">
+                <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
                   Cover Letter
                 </Heading>
-                <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm" mt={1}>
+                <Text color="fg.muted" fontSize="sm" mt={1}>
                   Tell the client why you are the right fit.
                 </Text>
               </Box>
             </HStack>
 
             <Field.Root invalid={Boolean(errors.proposal)} required>
-              <Field.Label color="white" fontWeight="semibold">
+              <Field.Label color="fg.default" fontWeight="semibold">
                 Cover letter
               </Field.Label>
               <Textarea
@@ -506,7 +506,7 @@ const SubmitProposalPage = () => {
               />
               <HStack justify="space-between" gap={3} align="start">
                 {errors.proposal ? (
-                  <Field.ErrorText color="red.300">{errors.proposal}</Field.ErrorText>
+                  <Field.ErrorText color="red.700">{errors.proposal}</Field.ErrorText>
                 ) : (
                   <Box />
                 )}
@@ -521,7 +521,7 @@ const SubmitProposalPage = () => {
             </Field.Root>
 
             <Field.Root invalid={Boolean(errors.relevantExperience)}>
-              <Field.Label color="white" fontWeight="semibold">
+              <Field.Label color="fg.default" fontWeight="semibold">
                 Describe your recent experience with similar projects
               </Field.Label>
               <Textarea
@@ -536,9 +536,9 @@ const SubmitProposalPage = () => {
               />
               <HStack justify="space-between" gap={3} align="start">
                 {errors.relevantExperience ? (
-                  <Field.ErrorText color="red.300">{errors.relevantExperience}</Field.ErrorText>
+                  <Field.ErrorText color="red.700">{errors.relevantExperience}</Field.ErrorText>
                 ) : (
-                  <Field.HelperText color="rgba(226, 232, 240, 0.5)">Optional</Field.HelperText>
+                  <Field.HelperText color="fg.subtle">Optional</Field.HelperText>
                 )}
                 <Text
                   color={
@@ -555,10 +555,10 @@ const SubmitProposalPage = () => {
             </Field.Root>
 
             <Box>
-              <Text color="white" fontWeight="semibold" mb={1}>
+              <Text color="fg.default" fontWeight="semibold" mb={1}>
                 Attachments
               </Text>
-              <Text color="rgba(226, 232, 240, 0.55)" fontSize="sm" mb={3}>
+              <Text color="fg.subtle" fontSize="sm" mb={3}>
                 Drag or upload project files
               </Text>
               <ProposalAttachments
@@ -580,7 +580,7 @@ const SubmitProposalPage = () => {
         right="0"
         bottom="0"
         zIndex="10"
-        bg="rgba(2, 6, 23, 0.94)"
+        bg="bg.panel"
         backdropFilter="blur(18px)"
         borderTop="1px solid rgba(148, 163, 184, 0.14)"
         px={{ base: 4, md: 8 }}
@@ -590,11 +590,11 @@ const SubmitProposalPage = () => {
           <HStack justify="space-between" align="center" gap={4} flexWrap="wrap">
             <Box minW="0">
               {serverError ? (
-                <Text color="red.300" fontSize="sm" fontWeight="semibold" role="alert">
+                <Text color="red.700" fontSize="sm" fontWeight="semibold" role="alert">
                   {serverError}
                 </Text>
               ) : (
-                <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+                <Text color="fg.muted" fontSize="sm">
                   Review your terms, then send your proposal to the client.
                 </Text>
               )}
@@ -604,8 +604,8 @@ const SubmitProposalPage = () => {
                 as={Link}
                 to={jobHref}
                 variant="ghost"
-                color="rgba(226, 232, 240, 0.78)"
-                _hover={{ bg: 'rgba(148, 163, 184, 0.1)', color: 'white' }}
+                color="fg.muted"
+                _hover={{ bg: 'rgba(148, 163, 184, 0.1)', color: 'fg.default' }}
               >
                 Cancel
               </Button>
@@ -614,15 +614,8 @@ const SubmitProposalPage = () => {
                 onClick={handleSubmit}
                 loading={submitting}
                 loadingText="Submitting"
-                borderRadius="full"
-                bgGradient="to-r"
-                gradientFrom="cyan.400"
-                gradientTo="blue.500"
-                color="gray.950"
-                fontWeight="bold"
                 px={6}
-                _hover={{ transform: 'translateY(-1px)', boxShadow: '0 16px 34px rgba(14, 165, 233, 0.24)' }}
-                _active={{ transform: 'translateY(0)' }}
+                {...greenSolidButtonStyles}
               >
                 <SendHorizontal size={17} />
                 Submit proposal

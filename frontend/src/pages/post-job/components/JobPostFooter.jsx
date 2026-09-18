@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { JOB_POST_STEPS } from '../constants.js';
 import JobPostProgress from './JobPostProgress.jsx';
+import { greenSolidButtonStyles, textUnderlineButtonStyles } from '../../../components/ui/buttonStyles.js';
 
 const JobPostFooter = ({
   activeStep,
@@ -31,9 +32,9 @@ const JobPostFooter = ({
       right="0"
       bottom="0"
       zIndex="10"
-      bg="rgba(2, 6, 23, 0.94)"
-      backdropFilter="blur(18px)"
-      borderTop="1px solid rgba(148, 163, 184, 0.14)"
+      bg="bg.canvas"
+      borderTop="1px solid"
+      borderColor="border.default"
       px={{ base: 4, md: 8 }}
       py={{ base: 4, md: 5 }}
     >
@@ -41,60 +42,42 @@ const JobPostFooter = ({
         <VStack align="stretch" gap={4}>
           <HStack justify="space-between" align="center" flexWrap="wrap" gap={3}>
             <HStack align="center" gap={3} flexWrap="wrap">
-              <Button
-                variant="ghost"
-                color="rgba(226, 232, 240, 0.78)"
-                _hover={{ bg: 'rgba(148, 163, 184, 0.1)', color: 'white' }}
-                onClick={onExit}
-              >
+              <Button type="button" onClick={onExit} {...textUnderlineButtonStyles}>
                 Exit
               </Button>
               {draftSaveError ? (
-                <Text color="red.300" fontSize="sm" fontWeight="semibold" role="alert">
+                <Text color="red.700" fontSize="sm" fontWeight="semibold" role="alert">
                   {draftSaveError}
                 </Text>
               ) : null}
               {draftSaveSuccess ? (
-                <Text color="green.300" fontSize="sm" fontWeight="semibold">
+                <Text color="fg.muted" fontSize="sm" fontWeight="semibold">
                   {draftSaveSuccess}
                 </Text>
               ) : null}
             </HStack>
             <HStack gap={3} flexWrap="wrap" justify="flex-end">
               <Button
-                variant="outline"
-                borderColor="rgba(74, 222, 128, 0.34)"
-                color="green.100"
+                type="button"
                 onClick={onSaveDraft}
                 disabled={saveDraftDisabled || isSavingDraft || isSubmitting}
-                _hover={{ bg: 'rgba(34, 197, 94, 0.1)', borderColor: 'green.300' }}
+                {...textUnderlineButtonStyles}
               >
-                {isSavingDraft ? 'Saving...' : 'Save draft'}
+                {isSavingDraft ? 'Saving...' : 'Save'}
               </Button>
               <Button
-                variant="outline"
-                borderColor="rgba(148, 163, 184, 0.24)"
-                color="white"
+                type="button"
                 onClick={onBack}
                 disabled={activeStepIndex === 0}
+                {...textUnderlineButtonStyles}
               >
                 Back
               </Button>
               <Button
-                bgGradient="to-r"
-                gradientFrom="green.300"
-                gradientTo="cyan.400"
-                color="gray.950"
-                fontWeight="bold"
-                borderRadius="full"
                 px={6}
-                _hover={{
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 18px 34px rgba(74, 222, 128, 0.24)',
-                }}
-                _active={{ transform: 'translateY(0)' }}
                 onClick={onContinue}
                 disabled={(activeStep.id === 'skills' && taxonomyLoading) || isSubmitting || isSavingDraft}
+                {...greenSolidButtonStyles}
               >
                 {continueLabel}
               </Button>

@@ -5,7 +5,7 @@ import { Text } from '@chakra-ui/react';
 // Cover letter, Skills, …). Centralizes the shared label tokens.
 const FieldLabel = ({ children, ...props }) => (
   <Text
-    color="rgba(226, 232, 240, 0.5)"
+    color="fg.subtle"
     fontSize="xs"
     fontWeight="bold"
     textTransform="uppercase"

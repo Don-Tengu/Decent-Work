@@ -28,10 +28,10 @@ const JobsResultsToolbar = ({
             aria-label="Sort jobs"
             value={sort}
             onChange={(event) => onSortChange(event.target.value)}
-            bg="rgba(8, 15, 29, 0.72)"
-            borderColor="rgba(148, 163, 184, 0.24)"
-            color="white"
-            borderRadius="14px"
+            bg="bg.muted"
+            borderColor="border.default"
+            color="fg.default"
+            borderRadius="12px"
           >
             {JOB_SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -39,7 +39,7 @@ const JobsResultsToolbar = ({
               </option>
             ))}
           </NativeSelect.Field>
-          <NativeSelect.Indicator color="rgba(226, 232, 240, 0.64)" />
+          <NativeSelect.Indicator color="fg.muted" />
         </NativeSelect.Root>
       </Box>
     </HStack>

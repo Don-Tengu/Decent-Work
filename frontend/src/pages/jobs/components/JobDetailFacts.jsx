@@ -25,19 +25,19 @@ const FactItem = ({ icon: Icon, label, value, detail }) => (
       flex="0 0 auto"
       borderRadius="12px"
       bg="rgba(34, 211, 238, 0.1)"
-      color="cyan.200"
+      color="fg.muted"
     >
       <Icon size={19} />
     </HStack>
     <VStack align="start" gap={1} minW="0">
-      <Text color="rgba(226, 232, 240, 0.52)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
+      <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase">
         {label}
       </Text>
-      <Text color="white" fontWeight="bold" lineHeight="1.3">
+      <Text color="fg.default" fontWeight="bold" lineHeight="1.3">
         {value}
       </Text>
       {detail ? (
-        <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" lineHeight="1.45">
+        <Text color="fg.muted" fontSize="sm" lineHeight="1.45">
           {detail}
         </Text>
       ) : null}

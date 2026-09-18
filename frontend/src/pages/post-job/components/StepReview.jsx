@@ -12,13 +12,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import {
-  AlertCircle,
-  Edit3,
-  FileText,
-  Tag,
-  X,
-} from 'lucide-react';
+import { AlertCircle, FileText, Tag, X } from 'lucide-react';
 import {
   DEFAULT_HOURLY_RATE_MAX,
   DEFAULT_HOURLY_RATE_MIN,
@@ -46,7 +40,13 @@ import {
   isScopeStepComplete,
   normalizeSkillName,
 } from '../constants.js';
-import { inputStyles } from '../styles.js';
+import {
+  editIconButtonStyles,
+  inputStyles,
+  skillTagStyles,
+  tagsInputControlStyles,
+  tagsInputFieldStyles,
+} from '../styles.js';
 import { buildTaxonomyGroups } from '../utils/taxonomy.js';
 import StepFive from './StepFive.jsx';
 import StepFour from './StepFour.jsx';
@@ -59,7 +59,7 @@ const MAX_SKILL_NAME_LENGTH = 64;
 
 const dialogContentStyles = {
   bg: 'rgba(8, 13, 25, 0.98)',
-  color: 'white',
+  color: 'fg.default',
   border: '1px solid',
   borderColor: 'rgba(148, 163, 184, 0.2)',
   borderRadius: { base: '0', md: '22px' },
@@ -98,7 +98,7 @@ const ReviewDialog = ({
     size={{ mdDown: 'full', md: size }}
   >
     <Portal>
-      <Dialog.Backdrop bg="rgba(2, 6, 23, 0.78)" backdropFilter="blur(8px)" />
+      <Dialog.Backdrop bg="rgba(20, 20, 19, 0.35)" backdropFilter="blur(8px)" />
       <Dialog.Positioner px={{ base: 0, md: 4 }} py={{ base: 0, md: 6 }}>
         <Dialog.Content {...dialogContentStyles} mt={{ base: 0, md: 6 }}>
           <Dialog.Header px={{ base: 5, md: 6 }} pt={{ base: 5, md: 6 }} pb={1}>
@@ -115,7 +115,7 @@ const ReviewDialog = ({
                 aria-label="Close dialog"
                 type="button"
                 variant="ghost"
-                color="rgba(226, 232, 240, 0.76)"
+                color="fg.muted"
                 position="absolute"
                 top={{ base: 4, md: 5 }}
                 right={{ base: 4, md: 5 }}
@@ -123,7 +123,7 @@ const ReviewDialog = ({
                 minW="40px"
                 w="40px"
                 h="40px"
-                _hover={{ bg: 'rgba(255, 255, 255, 0.08)', color: 'white' }}
+                _hover={{ bg: 'rgba(255, 255, 255, 0.08)', color: 'fg.default' }}
               >
                 <X size={24} strokeWidth={2} />
               </IconButton>
@@ -144,18 +144,18 @@ const ReviewDialog = ({
             <Button
               type="button"
               variant="ghost"
-              color="rgba(226, 232, 240, 0.82)"
+              color="fg.muted"
               onClick={onClose}
-              _hover={{ bg: 'rgba(148, 163, 184, 0.1)', color: 'white' }}
+              _hover={{ bg: 'rgba(148, 163, 184, 0.1)', color: 'fg.default' }}
             >
               Cancel
             </Button>
             <Button
               type="button"
-              bg="green.500"
-              color="gray.950"
+              bg="ink.900"
+              color="paper.100"
               onClick={onSave}
-              _hover={{ bg: 'green.400', transform: 'translateY(-1px)' }}
+              _hover={{ bg: 'ink.600' }}
               _active={{ transform: 'translateY(0)' }}
               {...actionButtonStyles}
             >
@@ -168,26 +168,26 @@ const ReviewDialog = ({
   </Dialog.Root>
 );
 
-const EditButton = ({ label, onClick }) => (
-  <IconButton
-    aria-label={label}
-    type="button"
-    variant="outline"
-    color="rgba(226, 232, 240, 0.8)"
-    borderColor="rgba(148, 163, 184, 0.32)"
-    bg="rgba(15, 23, 42, 0.44)"
-    borderRadius="full"
-    minW="42px"
-    w="42px"
-    h="42px"
-    onClick={onClick}
-    _hover={{
-      color: 'green.200',
-      borderColor: 'rgba(134, 239, 172, 0.62)',
-      bg: 'rgba(34, 197, 94, 0.1)',
-    }}
+const PencilIcon = () => (
+  <Box
+    as="svg"
+    viewBox="0 0 24 24"
+    boxSize="18px"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
   >
-    <Edit3 size={18} strokeWidth={2.2} />
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+  </Box>
+);
+
+const EditButton = ({ label, onClick }) => (
+  <IconButton aria-label={label} type="button" onClick={onClick} {...editIconButtonStyles}>
+    <PencilIcon />
   </IconButton>
 );
 
@@ -203,7 +203,7 @@ const ReviewSection = ({ title, children, onEdit }) => (
     <HStack align="start" justify="space-between" gap={5}>
       <Box minW="0" flex="1">
         <Text
-          color="rgba(226, 232, 240, 0.56)"
+          color="fg.muted"
           fontSize="xs"
           fontWeight="bold"
           letterSpacing="0.08em"
@@ -220,13 +220,13 @@ const ReviewSection = ({ title, children, onEdit }) => (
 );
 
 const EmptyText = ({ children }) => (
-  <Text color="rgba(226, 232, 240, 0.52)" fontStyle="italic">
+  <Text color="fg.subtle" fontStyle="italic">
     {children}
   </Text>
 );
 
 const ErrorMessage = ({ children }) => (
-  <HStack color="red.300" gap={2} align="start" role="alert">
+  <HStack color="red.700" gap={2} align="start" role="alert">
     <AlertCircle size={18} />
     <Text fontSize="sm" fontWeight="semibold">
       {children}
@@ -249,7 +249,7 @@ const AttachmentList = ({ attachments }) => {
             key={attachment.id}
             justify="space-between"
             gap={3}
-            bg="rgba(15, 23, 42, 0.52)"
+            bg="bg.muted"
             border="1px solid"
             borderColor="rgba(148, 163, 184, 0.16)"
             borderRadius="14px"
@@ -257,14 +257,14 @@ const AttachmentList = ({ attachments }) => {
             py={3}
           >
             <HStack minW="0" gap={3}>
-              <Box color="cyan.200" flex="0 0 auto">
+              <Box color="fg.muted" flex="0 0 auto">
                 <FileText size={22} strokeWidth={1.8} />
               </Box>
               <Box minW="0">
-                <Text color="white" fontWeight="semibold" overflow="hidden" textOverflow="ellipsis">
+                <Text color="fg.default" fontWeight="semibold" overflow="hidden" textOverflow="ellipsis">
                   {attachmentName}
                 </Text>
-                <Text color="rgba(226, 232, 240, 0.56)" fontSize="sm">
+                <Text color="fg.muted" fontSize="sm">
                   {formatAttachmentSize(getAttachmentSizeBytes(attachment))}
                 </Text>
               </Box>
@@ -334,10 +334,10 @@ const SkillEditor = ({
   return (
     <Field.Root required invalid={!!error}>
       <HStack justify="space-between" align="center" gap={3} flexWrap="wrap">
-        <Field.Label color="white" fontWeight="semibold">
+        <Field.Label color="fg.default" fontWeight="semibold">
           Skills
         </Field.Label>
-        <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+        <Text color="fg.muted" fontSize="sm">
           {selectedSkillCount}/{MAX_JOB_SKILLS} skills
         </Text>
       </HStack>
@@ -361,8 +361,7 @@ const SkillEditor = ({
           minH="64px"
           px={4}
           py={3}
-          gap={2}
-          alignItems="center"
+          {...tagsInputControlStyles}
           bg={inputStyles.bg}
           border={inputStyles.border}
           borderColor={error ? 'red.300' : inputStyles.borderColor}
@@ -376,23 +375,17 @@ const SkillEditor = ({
                 <TagsInput.Item key={`${skillName}-${index}`} index={index} value={skillName}>
                   <TagsInput.ItemPreview
                     maxW="100%"
-                    bg="rgba(34, 211, 238, 0.14)"
-                    border="1px solid"
-                    borderColor="rgba(125, 211, 252, 0.28)"
-                    borderRadius="full"
-                    color="cyan.50"
-                    fontWeight="semibold"
-                    px={3}
-                    py={1}
-                    _highlighted={{ bg: 'rgba(34, 211, 238, 0.22)' }}
+                    flexShrink={0}
+                    {...skillTagStyles}
+                    _highlighted={{ bg: 'paper.200' }}
                   >
                     <TagsInput.ItemText maxW="220px" overflow="hidden" textOverflow="ellipsis">
                       {skillName}
                     </TagsInput.ItemText>
                     <TagsInput.ItemDeleteTrigger
                       borderRadius="full"
-                      color="rgba(226, 232, 240, 0.72)"
-                      _hover={{ bg: 'rgba(255, 255, 255, 0.12)', color: 'white' }}
+                      color="fg.muted"
+                      _hover={{ bg: 'paper.300', color: 'ink.900' }}
                       aria-label={`Remove ${skillName}`}
                     />
                   </TagsInput.ItemPreview>
@@ -403,18 +396,17 @@ const SkillEditor = ({
           </TagsInput.Context>
 
           <TagsInput.Input
-            placeholder={selectedSkillCount >= MAX_JOB_SKILLS ? 'Skill limit reached' : 'Add a skill'}
+            placeholder={selectedSkillCount === 0 ? 'Add a skill' : undefined}
             disabled={selectedSkillCount >= MAX_JOB_SKILLS}
-            color="white"
-            flex="1 1 180px"
-            minW="140px"
+            color="fg.default"
+            {...tagsInputFieldStyles}
             _placeholder={inputStyles._placeholder}
           />
         </TagsInput.Control>
         <TagsInput.HiddenInput />
       </TagsInput.Root>
 
-      {error ? <Field.ErrorText color="red.300">{error}</Field.ErrorText> : null}
+      {error ? <Field.ErrorText color="red.700">{error}</Field.ErrorText> : null}
     </Field.Root>
   );
 };
@@ -777,7 +769,7 @@ const StepReview = ({
   return (
     <VStack align="stretch" gap={5}>
       <Box>
-        <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm" fontWeight="medium">
+        <Text color="fg.muted" fontSize="sm" fontWeight="medium">
           {isEditingPosting
             ? 'Edit each section, then save the changes to your live posting.'
             : 'Review each section, make any final edits, then publish when you are ready.'}
@@ -789,19 +781,19 @@ const StepReview = ({
       <Box
         border="1px solid"
         borderColor="rgba(148, 163, 184, 0.18)"
-        bg="rgba(15, 23, 42, 0.5)"
+        bg="bg.muted"
         borderRadius="20px"
         overflow="hidden"
       >
         <ReviewSection title="Job name" onEdit={() => openDialog('title')}>
-          <Text color="white" fontSize={{ base: '2xl', md: '3xl' }} fontWeight="bold" lineHeight="1.2">
+          <Text color="fg.default" fontSize={{ base: '2xl', md: '3xl' }} fontWeight="bold" lineHeight="1.2">
             {draft.title || 'Untitled job post'}
           </Text>
         </ReviewSection>
 
         <ReviewSection title="Job description" onEdit={() => openDialog('description')}>
           {draft.description ? (
-            <Text color="rgba(248, 250, 252, 0.92)" whiteSpace="pre-wrap" lineHeight="1.75">
+            <Text color="fg.default" whiteSpace="pre-wrap" lineHeight="1.75">
               {draft.description}
             </Text>
           ) : (
@@ -812,11 +804,11 @@ const StepReview = ({
 
         <ReviewSection title="Category" onEdit={() => openDialog('category')}>
           <VStack align="start" gap={1}>
-            <Text color="white" fontWeight="semibold">
+            <Text color="fg.default" fontWeight="semibold">
               {selectedSpecialtyName || selectedCategoryName || 'No category selected'}
             </Text>
             {selectedCategoryName && selectedSpecialtyName ? (
-              <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm">
+              <Text color="fg.muted" fontSize="sm">
                 {selectedCategoryName}
                 {selectedSpecialty?.subcategoryName ? ` / ${selectedSpecialty.subcategoryName}` : ''}
               </Text>
@@ -831,7 +823,7 @@ const StepReview = ({
                 <Box
                   key={`${skillName}-${index}`}
                   bg="rgba(226, 232, 240, 0.12)"
-                  color="white"
+                  color="fg.default"
                   borderRadius="full"
                   px={3}
                   py={1}
@@ -848,13 +840,13 @@ const StepReview = ({
         </ReviewSection>
 
         <ReviewSection title="Scope" onEdit={() => openDialog('scope')}>
-          <Text color="rgba(248, 250, 252, 0.92)" lineHeight="1.7">
+          <Text color="fg.default" lineHeight="1.7">
             {getScopeSummary(draft)}
           </Text>
         </ReviewSection>
 
         <ReviewSection title="Budget" onEdit={() => openDialog('budget')}>
-          <Text color="white" fontWeight="semibold">
+          <Text color="fg.default" fontWeight="semibold">
             {getBudgetSummary(draft)}
           </Text>
         </ReviewSection>
@@ -904,7 +896,7 @@ const StepReview = ({
       >
         <VStack align="stretch" gap={6}>
           <Field.Root required invalid={!!categoryDialogError && !categoryDraft.categoryId}>
-            <Field.Label color="white" fontWeight="semibold">
+            <Field.Label color="fg.default" fontWeight="semibold">
               Category
             </Field.Label>
             <NativeSelect.Root size="lg" disabled={taxonomyLoading || !!taxonomyError}>
@@ -922,12 +914,12 @@ const StepReview = ({
                   </option>
                 ))}
               </NativeSelect.Field>
-              <NativeSelect.Indicator color="rgba(226, 232, 240, 0.74)" />
+              <NativeSelect.Indicator color="fg.muted" />
             </NativeSelect.Root>
           </Field.Root>
 
           <Field.Root required invalid={!!categoryDialogError && !categoryDraft.specialtyId}>
-            <Field.Label color="white" fontWeight="semibold">
+            <Field.Label color="fg.default" fontWeight="semibold">
               Specialty
             </Field.Label>
             <NativeSelect.Root
@@ -948,7 +940,7 @@ const StepReview = ({
                   </option>
                 ))}
               </NativeSelect.Field>
-              <NativeSelect.Indicator color="rgba(226, 232, 240, 0.74)" />
+              <NativeSelect.Indicator color="fg.muted" />
             </NativeSelect.Root>
           </Field.Root>
 
@@ -972,7 +964,7 @@ const StepReview = ({
             onError={setSkillsDialogError}
             onCustomSkillsChange={setSkillsDraft}
           />
-          <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm">
+          <Text color="fg.muted" fontSize="sm">
             Add {MIN_JOB_SKILLS}-{MAX_JOB_SKILLS} skills. For best results, add 3-5.
           </Text>
         </VStack>
@@ -1008,7 +1000,7 @@ const StepReview = ({
         size="lg"
       >
         <VStack align="stretch" gap={5}>
-          <HStack color="rgba(226, 232, 240, 0.62)" gap={2}>
+          <HStack color="fg.muted" gap={2}>
             <Tag size={18} />
             <Text fontSize="sm">Fixed price (MVP)</Text>
           </HStack>

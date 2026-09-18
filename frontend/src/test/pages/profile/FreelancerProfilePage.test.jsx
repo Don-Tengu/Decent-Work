@@ -1,6 +1,7 @@
 import React from 'react';
 import { MockedProvider } from '@apollo/client/testing';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '@/theme.js';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -31,7 +32,7 @@ const userMock = (user = profileUser) => ({
 
 const renderProfile = (mocks) =>
   render(
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <MockedProvider mocks={mocks}>
         <MemoryRouter initialEntries={['/freelancers/user-1']}>
           <Routes>

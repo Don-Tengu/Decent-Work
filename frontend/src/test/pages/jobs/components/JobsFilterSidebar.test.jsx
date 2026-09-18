@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '@/theme.js';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +30,7 @@ const renderSidebar = () => {
   };
 
   render(
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <JobsFilterSidebar {...props} />
     </ChakraProvider>
   );
@@ -50,7 +51,8 @@ describe('JobsFilterSidebar', () => {
 
     expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/entry level/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/hourly/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/fixed price/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/hourly/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^category$/i }));
     expect(screen.queryByRole('button', { name: /all categories/i })).not.toBeInTheDocument();
@@ -59,7 +61,7 @@ describe('JobsFilterSidebar', () => {
     expect(screen.queryByLabelText(/entry level/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^job type$/i }));
-    expect(screen.queryByLabelText(/hourly/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/fixed price/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^category$/i }));
     expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();

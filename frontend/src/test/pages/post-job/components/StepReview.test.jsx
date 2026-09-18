@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '@/theme.js';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -98,7 +99,7 @@ const renderReview = (props = {}) => {
   const onDraftPatch = props.onDraftPatch ?? vi.fn();
 
   render(
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <StepReview
         draft={props.draft ?? baseDraft}
         submitError={props.submitError ?? ''}

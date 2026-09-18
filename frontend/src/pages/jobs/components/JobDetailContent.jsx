@@ -9,7 +9,7 @@ import { formatFileSize, getJobTags } from '../utils.jsx';
 
 const Section = ({ title, children }) => (
   <VStack align="stretch" gap={4} py={7} borderBottom="1px solid" borderColor="rgba(148, 163, 184, 0.18)">
-    <Heading as="h2" size="md" color="white" letterSpacing="0">
+    <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
       {title}
     </Heading>
     {children}
@@ -36,7 +36,7 @@ const AttachmentsList = ({ jobId, attachments }) => {
 
   if (!attachments.length) {
     return (
-      <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm">
+      <Text color="fg.muted" fontSize="sm">
         The client has not attached files to this listing yet.
       </Text>
     );
@@ -80,7 +80,7 @@ const AttachmentsList = ({ jobId, attachments }) => {
           border="1px solid"
           borderColor="rgba(148, 163, 184, 0.16)"
           borderRadius="14px"
-          bg="rgba(15, 23, 42, 0.42)"
+          bg="bg.muted"
           cursor="pointer"
           onClick={() => handleDownload(attachment)}
           _hover={{
@@ -89,7 +89,7 @@ const AttachmentsList = ({ jobId, attachments }) => {
           }}
           _focusVisible={{
             outline: '2px solid',
-            outlineColor: 'cyan.300',
+            outlineColor: 'ink.900',
             outlineOffset: '3px',
           }}
           _disabled={{
@@ -101,15 +101,15 @@ const AttachmentsList = ({ jobId, attachments }) => {
             <HStack gap={3} minW="0">
               <FileText size={18} color="#a5f3fc" />
               <Box minW="0">
-                <Text color="white" fontWeight="bold" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+                <Text color="fg.default" fontWeight="bold" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
                   {attachment.fileName}
                 </Text>
-                <Text color="rgba(226, 232, 240, 0.52)" fontSize="sm">
+                <Text color="fg.subtle" fontSize="sm">
                   {attachment.contentType || 'Attachment'} - {formatFileSize(attachment.fileSizeBytes)}
                 </Text>
               </Box>
             </HStack>
-            <HStack gap={2} flex="0 0 auto" color="cyan.100" fontSize="sm" fontWeight="bold">
+            <HStack gap={2} flex="0 0 auto" color="fg.default" fontSize="sm" fontWeight="bold">
               <Download size={16} />
               <Text display={{ base: 'none', sm: 'block' }}>
                 {downloadingId === attachment.id ? 'Downloading' : 'Download'}
@@ -119,7 +119,7 @@ const AttachmentsList = ({ jobId, attachments }) => {
         </Box>
       ))}
       {downloadError ? (
-        <Text color="red.200" fontSize="sm">
+        <Text color="red.700" fontSize="sm">
           {downloadError}
         </Text>
       ) : null}
@@ -137,7 +137,7 @@ const JobDetailContent = ({ job }) => {
       <JobDetailHeader job={job} />
 
       <Section title="Summary">
-        <Text color="rgba(226, 232, 240, 0.78)" lineHeight="1.85" whiteSpace="pre-line">
+        <Text color="fg.muted" lineHeight="1.85" whiteSpace="pre-line">
           {job.description}
         </Text>
       </Section>
@@ -157,14 +157,14 @@ const JobDetailContent = ({ job }) => {
                 px={3}
                 py={1.5}
                 bg="rgba(148, 163, 184, 0.16)"
-                color="rgba(248, 250, 252, 0.92)"
+                color="fg.default"
               >
                 {tag}
               </Badge>
             ))}
           </HStack>
         ) : (
-          <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm">
+          <Text color="fg.muted" fontSize="sm">
             The client has not added skills to this listing yet.
           </Text>
         )}
@@ -175,10 +175,10 @@ const JobDetailContent = ({ job }) => {
       </Section>
 
       <VStack align="stretch" gap={3} pt={7}>
-        <Heading as="h2" size="md" color="white" letterSpacing="0">
+        <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
           Activity on this job
         </Heading>
-        <Text color="rgba(226, 232, 240, 0.66)">
+        <Text color="fg.muted">
           {proposalCount
             ? `${proposalCount} proposal${proposalCount === 1 ? '' : 's'} submitted so far.`
             : 'No proposals have been submitted yet.'}

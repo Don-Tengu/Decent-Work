@@ -107,78 +107,76 @@ const MyBidCard = ({ bid, onAccept, onDecline, onSubmitWork }) => {
       variant="subtle"
       borderRadius="22px"
       p={{ base: 5, md: 6 }}
-      borderColor={isOffered ? 'rgba(34, 211, 238, 0.35)' : undefined}
+      borderColor={isOffered ? 'border.default' : undefined}
       boxShadow={isOffered ? '0 18px 48px rgba(6, 182, 212, 0.12)' : undefined}
     >
       <VStack align="stretch" gap={5}>
         <HStack justify="space-between" align="start" gap={4}>
           <Box minW="0">
-            <Heading as="h2" size="md" color="white" letterSpacing="0" lineHeight="1.35">
+            <Heading as="h2" size="md" color="fg.default" letterSpacing="0" lineHeight="1.35">
               {bid.job.title}
             </Heading>
-            <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" mt={1}>
+            <Text color="fg.muted" fontSize="sm" mt={1}>
               Job budget: {formatJobBudget(bid.job)}
             </Text>
             {isOffered ? (
-              <Text color="rgba(125, 211, 252, 0.95)" fontSize="sm" fontWeight="medium" mt={1}>
+              <Text color="fg.muted" fontSize="sm" fontWeight="medium" mt={1}>
                 The client sent you an offer. Accept to start the contract, or decline to stay in the pool.
               </Text>
             ) : null}
             {isAccepted && contractCopy ? (
-              <Text
-                color={
-                  changesRequested
-                    ? 'rgba(252, 211, 77, 0.95)'
-                    : awaitingReview
-                      ? 'rgba(125, 211, 252, 0.95)'
-                      : 'rgba(134, 239, 172, 0.9)'
-                }
-                fontSize="sm"
-                fontWeight="medium"
-                mt={1}
-              >
+              <Text color="fg.muted" fontSize="sm" fontWeight="medium" mt={1}>
                 {contractCopy}
               </Text>
             ) : null}
             {changesRequested && bid.payment?.changesRequestedMessage ? (
-              <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm" mt={2} whiteSpace="pre-line">
+              <Text color="fg.muted" fontSize="sm" mt={2} whiteSpace="pre-line">
                 {bid.payment.changesRequestedMessage}
               </Text>
             ) : null}
             {awaitingReview && bid.payment?.workSubmissionMessage ? (
-              <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm" mt={2} whiteSpace="pre-line">
+              <Text color="fg.muted" fontSize="sm" mt={2} whiteSpace="pre-line">
                 You submitted: {bid.payment.workSubmissionMessage}
               </Text>
             ) : null}
           </Box>
-          <Badge colorPalette={getStatusPalette(bid.status)} borderRadius="full" px={3} py={1} flex="0 0 auto">
+          <Badge
+            variant="outline"
+            color="fg.default"
+            borderColor="border.default"
+            bg="transparent"
+            borderRadius="8px"
+            px={3}
+            py={1}
+            flex="0 0 auto"
+          >
             {getStatusLabel(bid.status)}
           </Badge>
         </HStack>
 
         <SimpleGrid columns={{ base: 1, sm: 2 }} gap={4}>
           <HStack gap={3} align="start">
-            <Box color="cyan.200" mt={0.5}>
+            <Box color="fg.muted" mt={0.5}>
               <BriefcaseBusiness size={18} />
             </Box>
             <Box>
-              <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
+              <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase">
                 Your bid
               </Text>
-              <Text color="white" fontWeight="semibold">
+              <Text color="fg.default" fontWeight="semibold">
                 {formatCurrency(bid.amount, bid.job.currencyCode || 'USD') || bid.amount}
               </Text>
             </Box>
           </HStack>
           <HStack gap={3} align="start">
-            <Box color="cyan.200" mt={0.5}>
+            <Box color="fg.muted" mt={0.5}>
               <Clock3 size={18} />
             </Box>
             <Box>
-              <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
+              <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase">
                 Delivery
               </Text>
-              <Text color="white" fontWeight="semibold">
+              <Text color="fg.default" fontWeight="semibold">
                 {bid.deliveryTime} {bid.deliveryTime === 1 ? 'day' : 'days'}
               </Text>
             </Box>
@@ -186,20 +184,20 @@ const MyBidCard = ({ bid, onAccept, onDecline, onSubmitWork }) => {
         </SimpleGrid>
 
         <Box>
-          <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
+          <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
             Proposal
           </Text>
-          <Text color="rgba(226, 232, 240, 0.76)" lineHeight="1.75" whiteSpace="pre-line">
+          <Text color="fg.muted" lineHeight="1.75" whiteSpace="pre-line">
             {bid.proposal}
           </Text>
         </Box>
 
         {bid.relevantExperience ? (
           <Box>
-            <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
+            <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
               Recent experience
             </Text>
-            <Text color="rgba(226, 232, 240, 0.76)" lineHeight="1.75" whiteSpace="pre-line">
+            <Text color="fg.muted" lineHeight="1.75" whiteSpace="pre-line">
               {bid.relevantExperience}
             </Text>
           </Box>
@@ -368,10 +366,10 @@ const MyBids = () => {
 
         <GlassPanel variant="solid" borderRadius="28px" p={{ base: 5, md: 8 }}>
           <VStack align="stretch" gap={2}>
-            <Heading as="h1" size={{ base: 'xl', md: '2xl' }} color="white" letterSpacing="0">
+            <Heading as="h1" size={{ base: 'xl', md: '2xl' }} color="fg.default" letterSpacing="0">
               My proposals
             </Heading>
-            <Text color="rgba(226, 232, 240, 0.64)">
+            <Text color="fg.muted">
               Track proposals, respond to offers, submit finished work, and open active contracts here. Marketplace
               search only lists open jobs — use this page after you are offered or hired.
             </Text>
@@ -385,23 +383,23 @@ const MyBids = () => {
 
         {loading && !data ? (
           <GlassPanel variant="subtle" borderRadius="22px" p={6}>
-            <Text color="rgba(226, 232, 240, 0.72)">Loading your proposals...</Text>
+            <Text color="fg.muted">Loading your proposals...</Text>
           </GlassPanel>
         ) : null}
 
         {error ? (
           <GlassPanel variant="subtle" borderRadius="22px" p={6} borderColor="rgba(248, 113, 113, 0.34)">
-            <Text color="red.200">Error: {error.message}</Text>
+            <Text color="red.700">Error: {error.message}</Text>
           </GlassPanel>
         ) : null}
 
         {!loading && !error && bids.length === 0 ? (
           <GlassPanel variant="subtle" borderRadius="22px" p={{ base: 6, md: 8 }}>
             <VStack align="center" gap={4} textAlign="center">
-              <Heading as="h2" size="md" color="white" letterSpacing="0">
+              <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
                 No proposals yet
               </Heading>
-              <Text color="rgba(226, 232, 240, 0.62)" maxW="520px">
+              <Text color="fg.muted" maxW="520px">
                 Browse open jobs and submit your first proposal when the scope is a good fit.
               </Text>
               <Button as={Link} to="/jobs" px={6} {...subtlePillButtonStyles}>
@@ -440,7 +438,7 @@ const MyBids = () => {
       >
         {pendingAction?.type === 'submit' ? (
           <Field.Root>
-            <Field.Label color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+            <Field.Label color="fg.muted" fontSize="sm">
               Note to the client (optional)
             </Field.Label>
             <Textarea

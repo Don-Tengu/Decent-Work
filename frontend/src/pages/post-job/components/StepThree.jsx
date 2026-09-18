@@ -13,9 +13,9 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { getScopeDurationDays } from '../constants.js';
-import { inputStyles } from '../styles.js';
+import { editIconButtonStyles, inputStyles } from '../styles.js';
 
-const optionTextColor = '#0f172a';
+const optionTextColor = '#141413';
 
 const scopeOptions = [
   {
@@ -69,20 +69,20 @@ const durationUnitLabels = {
 
 const optionCardStyles = (isSelected) => ({
   p: 3,
-  borderRadius: '14px',
+  borderRadius: '12px',
   border: '1px solid',
-  borderColor: isSelected ? 'rgba(74, 222, 128, 0.5)' : 'rgba(148, 163, 184, 0.18)',
-  bg: isSelected ? 'rgba(20, 83, 45, 0.3)' : 'rgba(15, 23, 42, 0.38)',
+  borderColor: isSelected ? 'ink.900' : 'border.default',
+  bg: 'paper.200',
   cursor: 'pointer',
-  transition: 'all 0.2s ease',
+  transition: 'border-color 0.15s ease, background 0.15s ease',
   _hover: {
-    borderColor: isSelected ? 'rgba(74, 222, 128, 0.66)' : 'rgba(226, 232, 240, 0.32)',
-    bg: isSelected ? 'rgba(20, 83, 45, 0.44)' : 'rgba(15, 23, 42, 0.58)',
-    transform: 'translateY(-1px)',
+    borderColor: 'ink.900',
+    bg: 'paper.200',
   },
   _focusVisible: {
-    outline: '2px solid rgba(255, 255, 255, 0.68)',
-    outlineOffset: '3px',
+    outline: '2px solid',
+    outlineColor: 'ink.900',
+    outlineOffset: '2px',
   },
 });
 
@@ -136,16 +136,16 @@ const formatDurationSummary = (amount, unit) => {
 const SectionShell = ({ id, title, summary, description, open, onToggle, children }) => (
   <Box
     borderBottom="1px solid"
-    borderColor="rgba(148, 163, 184, 0.14)"
+    borderColor="border.default"
     py={{ base: 4, md: 5 }}
   >
     <HStack align="start" justify="space-between" gap={4}>
       <Box minW="0" flex="1">
-        <Text color="white" fontWeight="semibold" fontSize={{ base: 'lg', md: 'xl' }}>
+        <Text color="fg.default" fontWeight="semibold" fontSize={{ base: 'lg', md: 'xl' }}>
           {summary}
         </Text>
         {description ? (
-          <Text color="rgba(226, 232, 240, 0.66)" fontSize={{ base: 'sm', md: 'md' }} mt={1}>
+          <Text color="fg.muted" fontSize={{ base: 'sm', md: 'md' }} mt={1}>
             {description}
           </Text>
         ) : null}
@@ -155,20 +155,8 @@ const SectionShell = ({ id, title, summary, description, open, onToggle, childre
         aria-controls={`${id}-panel`}
         aria-expanded={open}
         type="button"
-        variant="outline"
-        color="green.300"
-        borderColor={open ? 'rgba(74, 222, 128, 0.72)' : 'rgba(226, 232, 240, 0.22)'}
-        bg={open ? 'rgba(74, 222, 128, 0.12)' : 'rgba(15, 23, 42, 0.36)'}
-        borderRadius="full"
-        minW="46px"
-        w="46px"
-        h="46px"
         onClick={() => onToggle(id)}
-        _hover={{
-          borderColor: 'rgba(74, 222, 128, 0.72)',
-          bg: 'rgba(74, 222, 128, 0.12)',
-          color: 'green.200',
-        }}
+        {...editIconButtonStyles}
       >
         <PencilIcon />
       </IconButton>
@@ -191,19 +179,20 @@ const RadioOption = ({ option, selectedValue }) => {
       <HStack align="start" gap={3}>
         <RadioGroup.ItemControl
           mt={1}
-          borderColor="rgba(226, 232, 240, 0.5)"
+          borderColor="ink.600"
+          bg="paper.50"
           transition="all 0.2s"
           _checked={{
-            bg: 'green.300',
-            borderColor: 'green.300',
-            color: 'gray.950',
+            bg: 'ink.900',
+            borderColor: 'ink.900',
+            color: 'paper.50',
           }}
         />
         <VStack align="start" gap={1}>
-          <RadioGroup.ItemText color="white" fontWeight="semibold">
+          <RadioGroup.ItemText color="fg.default" fontWeight="semibold">
             {option.label}
           </RadioGroup.ItemText>
-          <Text color="rgba(226, 232, 240, 0.68)" fontSize="sm" lineHeight="1.6">
+          <Text color="fg.muted" fontSize="sm" lineHeight="1.6">
             {option.description}
           </Text>
         </VStack>
@@ -279,7 +268,7 @@ const StepThree = ({
               onValueChange={({ value }) => onDurationAmountChange(value)}
             >
               <NumberInput.Input placeholder="Time" h="58px" {...inputStyles} />
-              <NumberInput.Control color="rgba(226, 232, 240, 0.72)">
+              <NumberInput.Control color="fg.muted">
                 <NumberInput.IncrementTrigger borderColor="rgba(148, 163, 184, 0.18)" />
                 <NumberInput.DecrementTrigger borderColor="rgba(148, 163, 184, 0.18)" />
               </NumberInput.Control>
@@ -302,7 +291,7 @@ const StepThree = ({
                   </option>
                 ))}
               </NativeSelect.Field>
-              <NativeSelect.Indicator color="rgba(226, 232, 240, 0.74)" />
+              <NativeSelect.Indicator color="fg.muted" />
             </NativeSelect.Root>
           </SimpleGrid>
         </Field.Root>
@@ -354,24 +343,24 @@ const StepThree = ({
           flexWrap="wrap"
         >
           <Box>
-            <Text color="white" fontWeight="semibold" mb={1}>
+            <Text color="fg.default" fontWeight="semibold" mb={1}>
               Contract-to-hire opportunity
             </Text>
-            <Text color="rgba(226, 232, 240, 0.68)" fontSize="sm">
+            <Text color="fg.muted" fontSize="sm">
               Mark this when the job could become a longer term role.
             </Text>
           </Box>
           <Switch.Root
             checked={draft.contractToHire}
             onCheckedChange={({ checked }) => onContractToHireChange(checked)}
-            colorPalette="green"
+            
             size="lg"
           >
             <Switch.HiddenInput />
             <Switch.Control>
               <Switch.Thumb />
             </Switch.Control>
-            <Switch.Label color="rgba(226, 232, 240, 0.74)" fontWeight="semibold">
+            <Switch.Label color="fg.muted" fontWeight="semibold">
               {draft.contractToHire ? 'Yes' : 'No'}
             </Switch.Label>
           </Switch.Root>
@@ -379,7 +368,7 @@ const StepThree = ({
       </SectionShell>
 
       {error ? (
-        <Text color="red.300" fontSize="sm">
+        <Text color="red.700" fontSize="sm">
           {error}
         </Text>
       ) : null}

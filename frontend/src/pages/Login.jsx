@@ -7,6 +7,7 @@ import {
 import GlassPanel from '../components/ui/GlassPanel';
 import PageShell from '../components/ui/PageShell';
 import SectionEyebrow from '../components/ui/SectionEyebrow';
+import { greenSolidButtonStyles } from '../components/ui/buttonStyles.js';
 
 const pageAccents = [
   {
@@ -28,15 +29,15 @@ const pageAccents = [
 ];
 
 const inputStyles = {
-  bg: 'rgba(15, 23, 42, 0.5)',
+  bg: 'bg.muted',
   border: '1px solid',
-  borderColor: 'rgba(148, 163, 184, 0.2)',
-  color: 'white',
-  borderRadius: '18px',
+  borderColor: 'border.default',
+  color: 'fg.default',
+  borderRadius: '12px',
   h: '56px',
-  _placeholder: { color: 'rgba(226, 232, 240, 0.38)' },
-  _hover: { borderColor: 'rgba(34, 211, 238, 0.42)' },
-  _focus: { borderColor: 'cyan.300', boxShadow: '0 0 0 1px rgba(34, 211, 238, 0.3)' },
+  _placeholder: { color: 'fg.subtle' },
+  _hover: { borderColor: 'ink.600' },
+  _focus: { borderColor: 'ink.900', boxShadow: '0 0 0 1px #141413' },
 };
 
 const Login = () => {
@@ -71,12 +72,12 @@ const Login = () => {
       >
         <GlassPanel variant="solid" p={{ base: 8, md: 10, lg: 12 }}>
           <VStack align="start" gap={6}>
-            <SectionEyebrow label="DecentWork Marketplace" dotColor="cyan.300" />
+            <SectionEyebrow label="DecentWork Marketplace" dotColor="ink.900" />
 
             <VStack align="start" gap={4} maxW="560px">
               <Heading
                 size={{ base: '2xl', md: '3xl' }}
-                color="white"
+                color="fg.default"
                 lineHeight="1.02"
                 letterSpacing="-0.03em"
               >
@@ -86,7 +87,7 @@ const Login = () => {
                 <br />
                 Build with confidence.
               </Heading>
-              <Text color="rgba(226, 232, 240, 0.76)" fontSize={{ base: 'md', md: 'lg' }}>
+              <Text color="fg.muted" fontSize={{ base: 'md', md: 'lg' }}>
                 A Web3-native freelance workflow for clients and builders who want transparent
                 milestones, wallet-based identity, and cleaner payouts.
               </Text>
@@ -95,9 +96,9 @@ const Login = () => {
             <Box
               w="full"
               borderRadius="28px"
-              bg="linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(15, 118, 110, 0.2))"
+              bg="bg.canvas"
               border="1px solid"
-              borderColor="rgba(148, 163, 184, 0.14)"
+              borderColor="border.default"
               p={{ base: 5, md: 6 }}
             >
               <HStack
@@ -107,10 +108,10 @@ const Login = () => {
                 flexDirection={{ base: 'column', md: 'row' }}
               >
                 <VStack align="start" gap={1}>
-                  <Text color="whiteAlpha.700" fontSize="sm">Escrow protected</Text>
-                  <Text color="white" fontSize="2xl" fontWeight="bold">1 transaction flow</Text>
+                  <Text color="fg.muted" fontSize="sm">Escrow protected</Text>
+                  <Text color="fg.default" fontSize="2xl" fontWeight="bold">1 transaction flow</Text>
                 </VStack>
-                <Text color="cyan.200" fontSize="sm" maxW="250px">
+                <Text color="fg.muted" fontSize="sm" maxW="250px">
                   Sign in to manage jobs, review bids, and move accepted work into payment flow.
                 </Text>
               </HStack>
@@ -121,19 +122,19 @@ const Login = () => {
         <GlassPanel variant="soft" w="full" maxW={{ base: 'full', lg: '460px' }} justifySelf="end">
           <VStack gap={6} align="stretch">
             <Box>
-              <Text color="cyan.200" fontSize="sm" fontWeight="semibold" mb={2}>
+              <Text color="fg.muted" fontSize="sm" fontWeight="semibold" mb={2}>
                 Welcome back
               </Text>
               <Heading
                 as="h1"
                 size="2xl"
-                color="white"
+                color="fg.default"
                 letterSpacing="-0.03em"
                 mb={2}
               >
                 Login to your workspace
               </Heading>
-              <Text color="rgba(226, 232, 240, 0.72)" fontSize="md">
+              <Text color="fg.muted" fontSize="md">
                 Access jobs, bids, and wallet-connected payment activity.
               </Text>
             </Box>
@@ -148,7 +149,7 @@ const Login = () => {
             <form onSubmit={handleSubmit}>
               <VStack gap={5}>
                 <Field.Root required>
-                  <Field.Label color="white" fontWeight="semibold">
+                  <Field.Label color="fg.default" fontWeight="semibold">
                     Email Address
                   </Field.Label>
                   <Input
@@ -161,7 +162,7 @@ const Login = () => {
                 </Field.Root>
 
                 <Field.Root required>
-                  <Field.Label color="white" fontWeight="semibold">
+                  <Field.Label color="fg.default" fontWeight="semibold">
                     Password
                   </Field.Label>
                   <Input
@@ -177,21 +178,8 @@ const Login = () => {
                   type="submit"
                   w="full"
                   h="58px"
-                  borderRadius="18px"
-                  bgGradient="to-r"
-                  gradientFrom="cyan.400"
-                  gradientTo="blue.500"
-                  color="gray.950"
-                  fontWeight="bold"
-                  _hover={{
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 18px 34px rgba(14, 165, 233, 0.3)',
-                  }}
-                  _active={{
-                    transform: 'translateY(0)',
-                  }}
                   loading={loading}
-                  transition="all 0.2s"
+                  {...greenSolidButtonStyles}
                 >
                   {loading ? 'Logging in...' : 'Enter Dashboard'}
                 </Button>
@@ -199,14 +187,14 @@ const Login = () => {
             </form>
 
             <Box textAlign="center" pt={2}>
-              <Text color="rgba(226, 232, 240, 0.72)">
+              <Text color="fg.muted">
                 New to DecentWork?{' '}
                 <Text
                   as={Link}
                   to="/register"
-                  color="cyan.200"
+                  color="fg.muted"
                   fontWeight="semibold"
-                  _hover={{ color: 'cyan.100', textDecoration: 'underline' }}
+                  _hover={{ color: 'fg.default', textDecoration: 'underline' }}
                 >
                   Create an account
                 </Text>

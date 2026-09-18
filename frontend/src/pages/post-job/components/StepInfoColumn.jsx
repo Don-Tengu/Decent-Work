@@ -10,10 +10,10 @@ const StepInfoColumn = ({ activeStep, stepIndex }) => (
       </span>
     </HStack>
     <VStack align="start" gap={2}>
-      <Heading as="h1" size="4xl" color="white" letterSpacing="-0.03em">
+      <Heading as="h1" size="4xl" color="fg.default" letterSpacing="-0.03em">
         {activeStep.title}
       </Heading>
-      <Text color="rgba(226, 232, 240, 0.74)" fontSize="sm" maxW="48rem">
+      <Text color="fg.muted" fontSize="sm" maxW="48rem">
         {activeStep.description}
       </Text>
       {activeStep.guidanceItems?.length ? (
@@ -21,12 +21,12 @@ const StepInfoColumn = ({ activeStep, stepIndex }) => (
           as="ul"
           pl={5}
           pt={2}
-          color="rgba(226, 232, 240, 0.82)"
+          color="fg.muted"
           listStyleType="disc"
           listStylePosition="outside"
           css={{
             '& li::marker': {
-              color: 'rgba(226, 232, 240, 0.82)',
+              color: 'fg.muted',
             },
           }}
         >

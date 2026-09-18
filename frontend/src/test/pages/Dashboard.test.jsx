@@ -1,6 +1,7 @@
 import React from 'react';
 import { MockedProvider } from '@apollo/client/testing';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '@/theme.js';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -197,7 +198,7 @@ const notificationMocks = [
 
 const renderDashboard = (mocks) =>
   render(
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <MockedProvider mocks={[...notificationMocks, ...mocks]}>
         <MemoryRouter>
           <Dashboard />

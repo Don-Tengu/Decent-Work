@@ -5,13 +5,14 @@ import { CheckCircle2, Copy, Heart, LockKeyhole, SendHorizontal, ShieldCheck } f
 import GlassPanel from '../../../components/ui/GlassPanel.jsx';
 import { formatBudgetLabel, formatPostedTime } from '../utils.jsx';
 import { getFreelancerWorkFlags } from '../paymentActions.js';
+import { greenSolidButtonStyles, subtlePillButtonStyles } from '../../../components/ui/buttonStyles.js';
 
 const SidebarStat = ({ label, value }) => (
   <Box>
-    <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
+    <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase">
       {label}
     </Text>
-    <Text color="white" fontWeight="semibold" mt={1}>
+    <Text color="fg.default" fontWeight="semibold" mt={1}>
       {value}
     </Text>
   </Box>
@@ -164,10 +165,10 @@ const JobDetailSidebar = ({
     <VStack align="stretch" gap={5} position={{ xl: 'sticky' }} top={{ xl: 6 }}>
       <GlassPanel variant="subtle" borderRadius="24px" p={{ base: 5, md: 6 }}>
         <VStack align="stretch" gap={4}>
-          <Heading as="h2" size="md" color="white" letterSpacing="0">
+          <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
             {panelTitle}
           </Heading>
-          <Text color="rgba(226, 232, 240, 0.66)" fontSize="sm" lineHeight="1.65">
+          <Text color="fg.muted" fontSize="sm" lineHeight="1.65">
             {proposalAction.copy}
           </Text>
           <Button
@@ -176,12 +177,7 @@ const JobDetailSidebar = ({
             type="button"
             disabled={proposalAction.disabled}
             onClick={proposalAction.onClick}
-            borderRadius="full"
-            bgGradient="to-r"
-            gradientFrom="cyan.400"
-            gradientTo="blue.500"
-            color="gray.950"
-            fontWeight="bold"
+            {...greenSolidButtonStyles}
             _disabled={{ opacity: 0.58, cursor: 'not-allowed' }}
           >
             {proposalAction.icon}
@@ -189,31 +185,15 @@ const JobDetailSidebar = ({
           </Button>
           <Button
             type="button"
-            bg={saved ? 'rgba(34, 197, 94, 0.2)' : 'rgba(15, 35, 54, 0.82)'}
-            border="1px solid"
-            borderColor={saved ? 'rgba(134, 239, 172, 0.88)' : 'rgba(125, 211, 252, 0.62)'}
-            borderRadius="full"
-            color={saved ? 'green.100' : 'rgba(226, 232, 240, 0.9)'}
+            {...subtlePillButtonStyles}
+            color={saved ? 'ink.900' : 'fg.default'}
+            bg={saved ? 'paper.200' : 'transparent'}
+            borderColor={saved ? 'ink.900' : 'border.default'}
             disabled={saving}
-            fontWeight="bold"
+            fontWeight="semibold"
             onClick={onToggleSaved}
-            transition="all 0.18s ease"
-            _hover={{
-              bg: saved ? 'rgba(34, 197, 94, 0.28)' : 'rgba(20, 47, 74, 0.94)',
-              borderColor: saved ? 'rgba(187, 247, 208, 0.96)' : 'rgba(165, 243, 252, 0.95)',
-              color: saved ? 'green.50' : 'cyan.50',
-              transform: 'translateY(-1px)',
-            }}
-            _active={{
-              bg: 'rgba(14, 116, 144, 0.28)',
-              transform: 'translateY(0)',
-            }}
-            _disabled={{
-              opacity: 0.58,
-              cursor: 'not-allowed',
-            }}
           >
-            <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
+            <Heart size={17} strokeWidth={1.75} fill={saved ? 'currentColor' : 'none'} />
             {saved ? 'Saved' : 'Save job'}
           </Button>
         </VStack>
@@ -221,7 +201,7 @@ const JobDetailSidebar = ({
 
       <GlassPanel variant="subtle" borderRadius="24px" p={{ base: 5, md: 6 }}>
         <VStack align="stretch" gap={5}>
-          <Heading as="h2" size="md" color="white" letterSpacing="0">
+          <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
             Job snapshot
           </Heading>
           <SidebarStat label="Budget" value={formatBudgetLabel(job)} />
@@ -235,15 +215,15 @@ const JobDetailSidebar = ({
 
       <GlassPanel variant="subtle" borderRadius="24px" p={{ base: 5, md: 6 }}>
         <VStack align="stretch" gap={5}>
-          <Heading as="h2" size="md" color="white" letterSpacing="0">
+          <Heading as="h2" size="md" color="fg.default" letterSpacing="0">
             About the client
           </Heading>
-          <HStack gap={3} color="green.200">
+          <HStack gap={3} color="fg.muted">
             <ShieldCheck size={18} />
             <Text fontWeight="bold">Client verified</Text>
           </HStack>
           <SidebarStat label="Client" value={job.client?.username || 'Marketplace client'} />
-          <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" lineHeight="1.6">
+          <Text color="fg.muted" fontSize="sm" lineHeight="1.6">
             Client history and escrow activity will become richer as bids, acceptance, and payment funding move into the product flow.
           </Text>
           <Button
@@ -253,18 +233,18 @@ const JobDetailSidebar = ({
             alignSelf="start"
             px={0}
             bg="transparent"
-            color="cyan.200"
+            color="fg.muted"
             fontWeight="semibold"
             textUnderlineOffset="3px"
             onClick={handleCopyLink}
             _hover={{
               bg: 'transparent',
-              color: 'cyan.100',
+              color: 'fg.default',
               textDecoration: 'underline',
             }}
             _active={{
               bg: 'transparent',
-              color: 'cyan.200',
+              color: 'fg.muted',
             }}
             _focusVisible={{
               outline: '2px solid',

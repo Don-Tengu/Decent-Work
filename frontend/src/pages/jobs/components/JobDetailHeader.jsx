@@ -4,7 +4,7 @@ import { BadgeCheck, Clock3, MapPin } from 'lucide-react';
 import { formatPostedTime } from '../utils.jsx';
 
 const MetaItem = ({ icon: Icon, children }) => (
-  <HStack gap={2} color="rgba(226, 232, 240, 0.68)" fontSize="sm">
+  <HStack gap={2} color="fg.muted" fontSize="sm">
     <Icon size={17} />
     <Text>{children}</Text>
   </HStack>
@@ -14,10 +14,10 @@ const JobDetailHeader = ({ job }) => (
   <VStack align="stretch" gap={5} pb={7} borderBottom="1px solid" borderColor="rgba(148, 163, 184, 0.18)">
     <HStack justify="space-between" align="start" gap={5} flexWrap="wrap">
       <Box flex="1" minW="0">
-        <Text color="rgba(125, 211, 252, 0.9)" fontSize="sm" fontWeight="bold" mb={3}>
+        <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3}>
           {job.category?.name || 'Open opportunity'}
         </Text>
-        <Heading as="h1" size={{ base: '2xl', md: '3xl' }} color="white" letterSpacing="0" lineHeight="1.08">
+        <Heading as="h1" size={{ base: '2xl', md: '3xl' }} color="fg.default" letterSpacing="0" lineHeight="1.08">
           {job.title}
         </Heading>
       </Box>

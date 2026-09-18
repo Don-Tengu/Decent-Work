@@ -1,6 +1,7 @@
 import React from 'react';
 import { MockedProvider } from '@apollo/client/testing';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '@/theme.js';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -116,7 +117,7 @@ const myBidForJobMock = (bid = null, jobId = 'job-1') => ({
 
 const renderJobDetail = (mocks, initialEntry = '/jobs/job-1') =>
   render(
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <MockedProvider mocks={mocks}>
         <MemoryRouter initialEntries={[initialEntry]}>
           <Routes>

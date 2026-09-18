@@ -1,7 +1,7 @@
 import React from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Box, Button, HStack, IconButton, Popover, Portal, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, HStack, IconButton, Popover, Portal, Text, VStack } from '@chakra-ui/react';
 import { Bell } from 'lucide-react';
 import {
   GET_MY_NOTIFICATIONS,
@@ -81,28 +81,29 @@ const NotificationBell = () => {
             type="button"
             variant="ghost"
             borderRadius="full"
-            color="rgba(226, 232, 240, 0.82)"
-            _hover={{ bg: 'rgba(255, 255, 255, 0.08)', color: 'white' }}
+            color="fg.muted"
+            _hover={{ bg: 'paper.200', color: 'fg.default' }}
           >
             <Bell size={18} />
           </IconButton>
           {unreadCount > 0 ? (
-            <Badge
+            <Box
               position="absolute"
               top="2px"
               right="2px"
-              colorPalette="red"
+              bg="ink.900"
+              color="#EDE9E0"
               borderRadius="full"
               minW="18px"
               h="18px"
-              px={1}
+              px="5px"
               fontSize="10px"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
+              fontWeight="bold"
+              lineHeight="18px"
+              textAlign="center"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
+            </Box>
           ) : null}
         </Box>
       </Popover.Trigger>
@@ -110,17 +111,18 @@ const NotificationBell = () => {
         <Popover.Positioner>
           <Popover.Content
             w={{ base: 'min(92vw, 360px)', md: '360px' }}
-            bg="rgba(8, 13, 25, 0.98)"
+            bg="bg.canvas"
             border="1px solid"
-            borderColor="rgba(148, 163, 184, 0.22)"
-            borderRadius="18px"
-            boxShadow="0 24px 64px rgba(0, 0, 0, 0.45)"
+            borderColor="border.default"
+            borderRadius="12px"
+            boxShadow="0 12px 32px rgba(20, 20, 19, 0.1)"
+            color="fg.default"
             p={0}
             overflow="hidden"
           >
-            <Box px={4} py={3} borderBottom="1px solid" borderColor="rgba(148, 163, 184, 0.14)">
+            <Box px={4} py={3} borderBottom="1px solid" borderColor="border.default">
               <HStack justify="space-between" align="center">
-                <Text color="white" fontWeight="bold" fontSize="sm">
+                <Text color="fg.default" fontWeight="bold" fontSize="sm">
                   Notifications
                 </Text>
                 {unreadCount > 0 ? (
@@ -128,7 +130,7 @@ const NotificationBell = () => {
                     type="button"
                     size="xs"
                     variant="ghost"
-                    color="cyan.200"
+                    color="fg.muted"
                     onClick={handleMarkAll}
                   >
                     Mark all read
@@ -139,14 +141,14 @@ const NotificationBell = () => {
             <VStack align="stretch" gap={0} maxH="360px" overflowY="auto">
               {loading && !data ? (
                 <Box px={4} py={5}>
-                  <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+                  <Text color="fg.muted" fontSize="sm">
                     Loading…
                   </Text>
                 </Box>
               ) : null}
               {!loading && notifications.length === 0 ? (
                 <Box px={4} py={5}>
-                  <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+                  <Text color="fg.muted" fontSize="sm">
                     No notifications yet.
                   </Text>
                 </Box>
@@ -160,18 +162,18 @@ const NotificationBell = () => {
                   px={4}
                   py={3}
                   borderBottom="1px solid"
-                  borderColor="rgba(148, 163, 184, 0.1)"
-                  bg={notification.read ? 'transparent' : 'rgba(34, 211, 238, 0.06)'}
-                  _hover={{ bg: 'rgba(125, 211, 252, 0.1)' }}
+                  borderColor="border.default"
+                  bg={notification.read ? 'transparent' : 'paper.200'}
+                  _hover={{ bg: 'paper.200' }}
                   onClick={() => handleOpenItem(notification)}
                 >
-                  <Text color="white" fontWeight="semibold" fontSize="sm" lineHeight="1.35">
+                  <Text color="fg.default" fontWeight="semibold" fontSize="sm" lineHeight="1.35">
                     {notification.title}
                   </Text>
-                  <Text color="rgba(226, 232, 240, 0.68)" fontSize="sm" mt={1} lineHeight="1.5">
+                  <Text color="fg.muted" fontSize="sm" mt={1} lineHeight="1.5">
                     {notification.message}
                   </Text>
-                  <Text color="rgba(226, 232, 240, 0.45)" fontSize="xs" mt={1.5}>
+                  <Text color="fg.subtle" fontSize="xs" mt={1.5}>
                     {formatRelativeTime(notification.createdAt)}
                   </Text>
                 </Box>

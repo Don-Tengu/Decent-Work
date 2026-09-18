@@ -61,13 +61,6 @@ const JOB_STATUS_LABEL = {
   CANCELLED: 'Cancelled',
 };
 
-const JOB_STATUS_PALETTE = {
-  OPEN: 'green',
-  IN_PROGRESS: 'cyan',
-  COMPLETED: 'green',
-  CANCELLED: 'red',
-};
-
 const BID_SORT_RANK = {
   ACCEPTED: 0,
   OFFERED: 1,
@@ -431,26 +424,28 @@ const ProposalsPage = () => {
               <SectionEyebrow label={pageEyebrow} />
               {jobStatusLabel ? (
                 <Badge
-                  colorPalette={JOB_STATUS_PALETTE[job.status]}
-                  variant="subtle"
-                  borderRadius="full"
+                  variant="outline"
+                  color="fg.default"
+                  borderColor="border.default"
+                  bg="transparent"
+                  borderRadius="8px"
                   px={3}
                   py={1}
-                  fontWeight="semibold"
+                  fontWeight="medium"
                 >
                   {jobStatusLabel}
                 </Badge>
               ) : null}
             </HStack>
-            <Heading color="white" size={{ base: 'xl', md: '2xl' }} letterSpacing="-0.02em">
+            <Heading color="fg.default" size={{ base: 'xl', md: '2xl' }} letterSpacing="-0.02em">
               {pageTitle}
             </Heading>
             {pageSubtitle ? (
-              <Text color="rgba(226, 232, 240, 0.68)" maxW="720px" lineHeight="1.6">
+              <Text color="fg.muted" maxW="720px" lineHeight="1.6">
                 {pageSubtitle}
               </Text>
             ) : null}
-            <HStack color="rgba(226, 232, 240, 0.6)" fontSize="sm" gap={2} flexWrap="wrap">
+            <HStack color="fg.muted" fontSize="sm" gap={2} flexWrap="wrap">
               {isHiring ? (
                 <Text>
                   {proposalCount} {proposalCount === 1 ? 'proposal' : 'proposals'}
@@ -472,7 +467,7 @@ const ProposalsPage = () => {
               {payment?.status === 'AWAITING_FUNDING' ? (
                 <>
                   <Text aria-hidden>·</Text>
-                  <Text color="rgba(252, 211, 77, 0.95)" fontWeight="medium">
+                  <Text color="fg.muted" fontWeight="medium">
                     Awaiting escrow funding
                   </Text>
                 </>
@@ -480,7 +475,7 @@ const ProposalsPage = () => {
               {payment?.status === 'ESCROWED' ? (
                 <>
                   <Text aria-hidden>·</Text>
-                  <Text color="rgba(134, 239, 172, 0.92)" fontWeight="medium">
+                  <Text color="fg.muted" fontWeight="medium">
                     {payment.changesRequestedAt
                       ? 'Changes requested'
                       : isOnChainPayment
@@ -492,7 +487,7 @@ const ProposalsPage = () => {
               {payment?.status === 'IN_REVIEW' ? (
                 <>
                   <Text aria-hidden>·</Text>
-                  <Text color="rgba(125, 211, 252, 0.95)" fontWeight="medium">
+                  <Text color="fg.muted" fontWeight="medium">
                     Work submitted · in review
                   </Text>
                 </>
@@ -500,7 +495,7 @@ const ProposalsPage = () => {
               {payment?.status === 'RELEASED' ? (
                 <>
                   <Text aria-hidden>·</Text>
-                  <Text color="rgba(134, 239, 172, 0.92)" fontWeight="medium">
+                  <Text color="fg.muted" fontWeight="medium">
                     Payment released
                   </Text>
                 </>
@@ -569,7 +564,7 @@ const ProposalsPage = () => {
             {isContract && hiredBid ? (
               <VStack align="stretch" gap={3}>
                 <Text
-                  color="rgba(125, 211, 252, 0.9)"
+                  color="fg.muted"
                   fontSize="sm"
                   fontWeight="bold"
                   letterSpacing="0.04em"
@@ -587,14 +582,14 @@ const ProposalsPage = () => {
                 />
                 {job.status === 'IN_PROGRESS' && !loadingPayment && !payment && !paymentError ? (
                   <GlassPanel variant="soft" borderRadius="18px" p={4}>
-                    <Text color="rgba(252, 211, 77, 0.95)" fontSize="sm" lineHeight="1.6">
+                    <Text color="fg.muted" fontSize="sm" lineHeight="1.6">
                       No payment record was found for this contract. Hire may have completed without
                       creating escrow — try hiring again on a new open job, or check the backend logs.
                     </Text>
                   </GlassPanel>
                 ) : null}
                 {canFund ? (
-                  <Text color="rgba(226, 232, 240, 0.55)" fontSize="sm">
+                  <Text color="fg.subtle" fontSize="sm">
                     Use <strong>Fund escrow</strong> to lock {pendingAmount || 'funds'} on-chain before
                     work starts. Both wallets must be connected.
                   </Text>
@@ -603,25 +598,25 @@ const ProposalsPage = () => {
                   <GlassPanel variant="soft" borderRadius="18px" p={4}>
                     <VStack align="stretch" gap={2}>
                       {payment.status === 'IN_REVIEW' ? (
-                        <Text color="rgba(125, 211, 252, 0.95)" fontSize="sm" fontWeight="semibold">
+                        <Text color="fg.muted" fontSize="sm" fontWeight="semibold">
                           Work submitted for review
                         </Text>
                       ) : payment.changesRequestedMessage ? (
-                        <Text color="rgba(252, 211, 77, 0.95)" fontSize="sm" fontWeight="semibold">
+                        <Text color="fg.muted" fontSize="sm" fontWeight="semibold">
                           You requested changes
                         </Text>
                       ) : null}
                       {payment.workSubmissionMessage ? (
-                        <Text color="rgba(226, 232, 240, 0.78)" fontSize="sm" lineHeight="1.6" whiteSpace="pre-line">
+                        <Text color="fg.muted" fontSize="sm" lineHeight="1.6" whiteSpace="pre-line">
                           {payment.workSubmissionMessage}
                         </Text>
                       ) : payment.status === 'IN_REVIEW' ? (
-                        <Text color="rgba(226, 232, 240, 0.62)" fontSize="sm">
+                        <Text color="fg.muted" fontSize="sm">
                           The freelancer submitted work without a note.
                         </Text>
                       ) : null}
                       {payment.changesRequestedMessage ? (
-                        <Text color="rgba(226, 232, 240, 0.68)" fontSize="sm" lineHeight="1.6" whiteSpace="pre-line">
+                        <Text color="fg.muted" fontSize="sm" lineHeight="1.6" whiteSpace="pre-line">
                           {payment.changesRequestedMessage}
                         </Text>
                       ) : null}
@@ -629,13 +624,13 @@ const ProposalsPage = () => {
                   </GlassPanel>
                 ) : null}
                 {canRequestChanges ? (
-                  <Text color="rgba(226, 232, 240, 0.55)" fontSize="sm">
+                  <Text color="fg.subtle" fontSize="sm">
                     Use <strong>Approve &amp; release</strong> if the work is done, or{' '}
                     <strong>Request changes</strong> to send it back. Funds stay in escrow until you release.
                   </Text>
                 ) : null}
                 {canRelease && !canRequestChanges ? (
-                  <Text color="rgba(226, 232, 240, 0.55)" fontSize="sm">
+                  <Text color="fg.subtle" fontSize="sm">
                     The freelancer can submit work from My proposals. You can still{' '}
                     <strong>Release payment</strong> without waiting.
                   </Text>
@@ -661,7 +656,7 @@ const ProposalsPage = () => {
             {isContract && otherBids.length > 0 ? (
               <VStack align="stretch" gap={3} pt={2}>
                 <Text
-                  color="rgba(226, 232, 240, 0.55)"
+                  color="fg.subtle"
                   fontSize="sm"
                   fontWeight="bold"
                   letterSpacing="0.04em"
@@ -669,7 +664,7 @@ const ProposalsPage = () => {
                 >
                   Other proposals ({otherBids.length})
                 </Text>
-                <Text color="rgba(226, 232, 240, 0.48)" fontSize="sm" mb={1}>
+                <Text color="fg.subtle" fontSize="sm" mb={1}>
                   These freelancers were not selected for this job.
                 </Text>
                 <VStack align="stretch" gap={3}>
@@ -724,28 +719,26 @@ const ProposalsPage = () => {
             p={3}
             borderRadius="14px"
             border="1px solid"
-            borderColor={
-              walletMatched ? 'rgba(74, 222, 128, 0.28)' : 'rgba(252, 211, 77, 0.35)'
-            }
-            bg={walletMatched ? 'rgba(20, 83, 45, 0.22)' : 'rgba(113, 63, 18, 0.28)'}
+            borderColor="border.default"
+            bg="bg.muted"
           >
-            <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+            <Text color="fg.muted" fontSize="sm">
               Bound wallet:{' '}
-              <Text as="span" color="white" fontFamily="mono">
+              <Text as="span" color="fg.default" fontFamily="mono">
                 {expectedSigningAddress
                   ? shortenAddress(expectedSigningAddress)
                   : 'not connected'}
               </Text>
             </Text>
-            <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+            <Text color="fg.muted" fontSize="sm">
               MetaMask:{' '}
-              <Text as="span" color="white" fontFamily="mono">
+              <Text as="span" color="fg.default" fontFamily="mono">
                 {liveWallet ? shortenAddress(liveWallet) : 'not connected'}
               </Text>
               {walletMatched ? ' · matched' : ' · switch to the bound account'}
             </Text>
             {!expectedSigningAddress ? (
-              <Text color="orange.200" fontSize="sm">
+              <Text color="fg.muted" fontSize="sm">
                 Connect a wallet on the dashboard first.
               </Text>
             ) : null}
@@ -753,7 +746,7 @@ const ProposalsPage = () => {
         ) : null}
         {actionType === 'requestChanges' ? (
           <Field.Root>
-            <Field.Label color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+            <Field.Label color="fg.muted" fontSize="sm">
               What should they change? (optional)
             </Field.Label>
             <Textarea

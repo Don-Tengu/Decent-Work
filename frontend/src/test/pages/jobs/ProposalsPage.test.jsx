@@ -1,7 +1,8 @@
 import React from 'react';
 import { MockedProvider } from '@apollo/client/testing';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '@/theme.js';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -152,7 +153,7 @@ const offerBidMock = () => ({
 
 const renderProposals = (mocks) =>
   render(
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <MockedProvider mocks={mocks}>
         <MemoryRouter initialEntries={['/jobs/job-1/proposals']}>
           <Routes>
@@ -252,6 +253,9 @@ describe('ProposalsPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Send offer' }));
 
     expect(await screen.findByText(/offer sent — waiting for freelancer/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
     expect(screen.getByRole('button', { name: /withdraw offer/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Offer' })).not.toBeInTheDocument();
   });

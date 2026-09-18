@@ -1,7 +1,8 @@
 import React from 'react';
 import { ApolloProvider } from '@apollo/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { system } from './theme.js';
 import { apolloClient } from './apollo-client';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './routes/PrivateRoute';
@@ -9,7 +10,7 @@ import { privateRoutes, publicRoutes } from './routes/routes';
 
 function App() {
   return (
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <ApolloProvider client={apolloClient}>
         <BrowserRouter>
           <AuthProvider>

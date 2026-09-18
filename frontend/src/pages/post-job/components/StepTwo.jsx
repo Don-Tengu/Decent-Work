@@ -11,7 +11,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { X } from 'lucide-react';
-import { inputStyles } from '../styles.js';
+import { inputStyles, skillTagStyles, tagsInputControlStyles, tagsInputFieldStyles } from '../styles.js';
 import { buildTaxonomyGroups } from '../utils/taxonomy.js';
 import { getSelectedSkillCount, MAX_JOB_SKILLS, MIN_JOB_SKILLS } from '../constants.js';
 
@@ -117,7 +117,7 @@ const StepTwo = ({
     <VStack align="stretch" gap={6}>
       <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
         <Field.Root required invalid={!!selectionError && !draft.categoryId}>
-          <Field.Label color="white" fontWeight="semibold">
+          <Field.Label color="fg.default" fontWeight="semibold">
             Category
           </Field.Label>
           <NativeSelect.Root size="lg" disabled={taxonomyLoading || !!taxonomyError}>
@@ -135,12 +135,12 @@ const StepTwo = ({
                 </option>
               ))}
             </NativeSelect.Field>
-            <NativeSelect.Indicator color="rgba(226, 232, 240, 0.74)" />
+            <NativeSelect.Indicator color="fg.muted" />
           </NativeSelect.Root>
         </Field.Root>
 
         <Field.Root required invalid={!!selectionError && !draft.specialtyId}>
-          <Field.Label color="white" fontWeight="semibold">
+          <Field.Label color="fg.default" fontWeight="semibold">
             Specialty
           </Field.Label>
           <NativeSelect.Root
@@ -161,17 +161,17 @@ const StepTwo = ({
                 </option>
               ))}
             </NativeSelect.Field>
-            <NativeSelect.Indicator color="rgba(226, 232, 240, 0.74)" />
+            <NativeSelect.Indicator color="fg.muted" />
           </NativeSelect.Root>
         </Field.Root>
       </SimpleGrid>
 
       <Field.Root required invalid={!!skillError}>
         <HStack justify="space-between" align="center" gap={3} flexWrap="wrap">
-          <Field.Label color="white" fontWeight="semibold">
+          <Field.Label color="fg.default" fontWeight="semibold">
             Skills
           </Field.Label>
-          <Text color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+          <Text color="fg.muted" fontSize="sm">
             {selectedSkillCount}/{MAX_JOB_SKILLS} skills
           </Text>
         </HStack>
@@ -195,8 +195,7 @@ const StepTwo = ({
             minH="64px"
             px={4}
             py={3}
-            gap={2}
-            alignItems="center"
+            {...tagsInputControlStyles}
             bg={inputStyles.bg}
             border={inputStyles.border}
             borderColor={skillError ? 'red.300' : inputStyles.borderColor}
@@ -211,14 +210,8 @@ const StepTwo = ({
                 display="inline-flex"
                 alignItems="center"
                 maxW="100%"
-                bg="rgba(34, 211, 238, 0.14)"
-                border="1px solid"
-                borderColor="rgba(125, 211, 252, 0.28)"
-                borderRadius="full"
-                color="cyan.50"
-                fontWeight="semibold"
-                px={3}
-                py={1}
+                flexShrink={0}
+                {...skillTagStyles}
               >
                 <Text as="span" maxW="220px" overflow="hidden" textOverflow="ellipsis">
                   {skill.name}
@@ -233,9 +226,9 @@ const StepTwo = ({
                   h="24px"
                   ml={1}
                   borderRadius="full"
-                  color="rgba(226, 232, 240, 0.72)"
+                  color="fg.muted"
                   onClick={() => handleBuiltInSkillRemove(skill.id)}
-                  _hover={{ bg: 'rgba(255, 255, 255, 0.12)', color: 'white' }}
+                  _hover={{ bg: 'paper.300', color: 'ink.900' }}
                 >
                   <X size={14} strokeWidth={2.4} />
                 </IconButton>
@@ -248,23 +241,17 @@ const StepTwo = ({
                   <TagsInput.Item key={skillName} index={index} value={skillName}>
                     <TagsInput.ItemPreview
                       maxW="100%"
-                      bg="rgba(34, 211, 238, 0.14)"
-                      border="1px solid"
-                      borderColor="rgba(125, 211, 252, 0.28)"
-                      borderRadius="full"
-                      color="cyan.50"
-                      fontWeight="semibold"
-                      px={3}
-                      py={1}
-                      _highlighted={{ bg: 'rgba(34, 211, 238, 0.22)' }}
+                      flexShrink={0}
+                      {...skillTagStyles}
+                      _highlighted={{ bg: 'paper.200' }}
                     >
                       <TagsInput.ItemText maxW="220px" overflow="hidden" textOverflow="ellipsis">
                         {skillName}
                       </TagsInput.ItemText>
                       <TagsInput.ItemDeleteTrigger
                         borderRadius="full"
-                        color="rgba(226, 232, 240, 0.72)"
-                        _hover={{ bg: 'rgba(255, 255, 255, 0.12)', color: 'white' }}
+                        color="fg.muted"
+                        _hover={{ bg: 'paper.300', color: 'ink.900' }}
                         aria-label={`Remove ${skillName}`}
                       />
                     </TagsInput.ItemPreview>
@@ -275,15 +262,10 @@ const StepTwo = ({
             </TagsInput.Context>
 
             <TagsInput.Input
-              placeholder={
-                selectedSkillCount >= MAX_JOB_SKILLS
-                  ? 'Skill limit reached'
-                  : 'Search or add a skill'
-              }
+              placeholder={selectedSkillCount === 0 ? 'Search or add a skill' : undefined}
               disabled={selectedSkillCount >= MAX_JOB_SKILLS}
-              color="white"
-              flex="1 1 180px"
-              minW="140px"
+              color="fg.default"
+              {...tagsInputFieldStyles}
               _placeholder={inputStyles._placeholder}
             />
           </TagsInput.Control>
@@ -291,21 +273,21 @@ const StepTwo = ({
         </TagsInput.Root>
 
         <HStack justify="space-between" gap={3} align="start" flexWrap="wrap">
-          <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm">
+          <Text color="fg.muted" fontSize="sm">
             Add {MIN_JOB_SKILLS}-{MAX_JOB_SKILLS} skills. For best results, add 3-5.
           </Text>
-          {skillError ? <Field.ErrorText color="red.300">{skillError}</Field.ErrorText> : null}
+          {skillError ? <Field.ErrorText color="red.700">{skillError}</Field.ErrorText> : null}
         </HStack>
       </Field.Root>
 
       {taxonomySelectionError ? (
-        <Text color="red.300" fontSize="sm">
+        <Text color="red.700" fontSize="sm">
           {taxonomySelectionError}
         </Text>
       ) : null}
 
       {taxonomyError ? (
-        <Text color="red.300" fontSize="sm">
+        <Text color="red.700" fontSize="sm">
           {taxonomyError.message}
         </Text>
       ) : null}

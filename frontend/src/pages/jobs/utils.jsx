@@ -77,12 +77,39 @@ export const formatDuration = (amount, unit) => {
   return `${numericAmount} ${numericAmount === 1 ? unitLabel : `${unitLabel}s`}`;
 };
 
-export const formatWorkSummary = (job) => [
-  formatBudgetLabel(job),
-  EXPERIENCE_LABELS[job.experienceLevel] ?? 'Experience flexible',
-  `Est. time: ${formatDuration(job.scopeDurationAmount, job.scopeDurationUnit)}`,
-  SCOPE_SIZE_LABELS[job.scopeSize] ? `${SCOPE_SIZE_LABELS[job.scopeSize]} scope` : null,
-].filter(Boolean).join(' - ');
+const formatSummaryBudget = (job) => {
+  const currency = job.currencyCode || 'USD';
+
+  if (job.budgetType === 'HOURLY') {
+    const min = formatCurrency(job.hourlyRateMin, currency);
+    const max = formatCurrency(job.hourlyRateMax, currency);
+    return min && max ? `${min}–${max} /hr` : null;
+  }
+
+  if (job.budgetType === 'FIXED') {
+    const amount = formatCurrency(job.fixedBudget, currency);
+    return amount ? `${amount} fixed` : null;
+  }
+
+  if (job.budgetType === 'NOT_READY') {
+    return 'Budget TBD';
+  }
+
+  return null;
+};
+
+export const getWorkSummaryParts = (job) => {
+  const duration = formatDuration(job.scopeDurationAmount, job.scopeDurationUnit);
+
+  return [
+    formatSummaryBudget(job),
+    EXPERIENCE_LABELS[job.experienceLevel] ?? null,
+    duration === 'Flexible duration' ? null : `Est. ${duration}`,
+    SCOPE_SIZE_LABELS[job.scopeSize] ? `${SCOPE_SIZE_LABELS[job.scopeSize]} project` : null,
+  ].filter(Boolean);
+};
+
+export const formatWorkSummary = (job) => getWorkSummaryParts(job).join(' · ');
 
 export const formatDeliveryTime = (days) => {
   const numeric = Number(days);
@@ -168,7 +195,7 @@ export const HighlightedText = ({ children, query, as = 'span', ...props }) => {
             as="mark"
             key={`${part}-${index}`}
             bg="rgba(132, 204, 22, 0.78)"
-            color="gray.950"
+            color="paper.100"
             px="1"
             borderRadius="4px"
           >

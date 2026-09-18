@@ -32,12 +32,12 @@ const FilterSection = ({ title, open, onToggle, children }) => (
         outlineOffset: '3px',
       }}
     >
-      <Text color="white" fontWeight="bold">
+      <Text color="fg.default" fontWeight="bold">
         {title}
       </Text>
       <ChevronDown
         size={17}
-        color="rgba(226, 232, 240, 0.62)"
+        color="fg.muted"
         style={{
           transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
           transition: 'transform 140ms ease',
@@ -50,18 +50,19 @@ const FilterSection = ({ title, open, onToggle, children }) => (
 
 const FilterCheckbox = ({ checked, label, value, onToggle }) => (
   <Checkbox.Root
+    variant="outline"
     checked={checked}
     onCheckedChange={(details) => onToggle(value, Boolean(details.checked))}
-    colorPalette="cyan"
   >
     <Checkbox.HiddenInput />
     <Checkbox.Control
-      borderColor="rgba(148, 163, 184, 0.42)"
-      bg="rgba(15, 23, 42, 0.58)"
+      borderColor="border.default"
+      bg="bg.panel"
+      color="fg.default"
     >
       <Checkbox.Indicator />
     </Checkbox.Control>
-    <Checkbox.Label color="rgba(248, 250, 252, 0.88)" fontSize="sm">
+    <Checkbox.Label color="fg.default" fontSize="sm">
       {label}
     </Checkbox.Label>
   </Checkbox.Root>
@@ -94,7 +95,7 @@ const JobsFilterSidebar = ({
   return (
     <VStack as="aside" align="stretch" gap={6}>
       <HStack justify="space-between">
-        <Text color="rgba(226, 232, 240, 0.7)" fontSize="sm" fontWeight="bold" textTransform="uppercase" letterSpacing="0.08em">
+        <Text color="fg.subtle" fontSize="sm" fontWeight="bold" textTransform="uppercase" letterSpacing="0.08em">
           Filters
         </Text>
         <Button
@@ -103,22 +104,22 @@ const JobsFilterSidebar = ({
           variant="plain"
           px={3}
           bg="transparent"
-          color="rgba(125, 211, 252, 0.82)"
+          color="fg.muted"
           fontWeight="semibold"
           textUnderlineOffset="3px"
           onClick={onReset}
           _hover={{
             bg: 'transparent',
-            color: 'cyan.100',
+            color: 'fg.default',
             textDecoration: 'underline',
           }}
           _active={{
             bg: 'transparent',
-            color: 'cyan.200',
+            color: 'fg.muted',
           }}
           _focusVisible={{
             outline: '2px solid',
-            outlineColor: 'rgba(125, 211, 252, 0.5)',
+            outlineColor: 'ink.900',
             outlineOffset: '2px',
           }}
         >

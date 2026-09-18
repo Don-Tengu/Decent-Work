@@ -56,7 +56,7 @@ const AttachmentDownloadList = ({ attachments = [], label }) => {
   return (
     <VStack align="stretch" gap={2}>
       {label ? (
-        <Text color="rgba(226, 232, 240, 0.5)" fontSize="xs" fontWeight="bold" textTransform="uppercase">
+        <Text color="fg.subtle" fontSize="xs" fontWeight="bold" textTransform="uppercase">
           {label}
         </Text>
       ) : null}
@@ -71,18 +71,18 @@ const AttachmentDownloadList = ({ attachments = [], label }) => {
           w="full"
           p={3}
           border="1px solid"
-          borderColor="rgba(148, 163, 184, 0.16)"
+          borderColor="border.default"
           borderRadius="12px"
-          bg="rgba(15, 23, 42, 0.42)"
+          bg="bg.muted"
           cursor="pointer"
           onClick={() => handleDownload(attachment)}
           _hover={{
-            borderColor: 'rgba(125, 211, 252, 0.46)',
-            bg: 'rgba(14, 116, 144, 0.14)',
+            borderColor: 'ink.900',
+            bg: 'paper.200',
           }}
           _focusVisible={{
             outline: '2px solid',
-            outlineColor: 'cyan.300',
+            outlineColor: 'ink.900',
             outlineOffset: '3px',
           }}
           _disabled={{
@@ -92,17 +92,17 @@ const AttachmentDownloadList = ({ attachments = [], label }) => {
         >
           <HStack justify="space-between" gap={3}>
             <HStack gap={3} minW="0">
-              <FileText size={16} color="#a5f3fc" />
+              <FileText size={16} color="#141413" />
               <Box minW="0">
-                <Text color="white" fontWeight="semibold" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+                <Text color="fg.default" fontWeight="semibold" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
                   {attachment.fileName}
                 </Text>
-                <Text color="rgba(226, 232, 240, 0.52)" fontSize="xs">
+                <Text color="fg.subtle" fontSize="xs">
                   {attachment.contentType || 'Attachment'} - {formatFileSize(attachment.fileSizeBytes)}
                 </Text>
               </Box>
             </HStack>
-            <HStack gap={2} flex="0 0 auto" color="cyan.100" fontSize="sm" fontWeight="bold">
+            <HStack gap={2} flex="0 0 auto" color="fg.default" fontSize="sm" fontWeight="bold">
               <Download size={15} />
               <Text display={{ base: 'none', sm: 'block' }}>
                 {downloadingId === attachment.id ? 'Downloading' : 'Download'}
@@ -113,7 +113,7 @@ const AttachmentDownloadList = ({ attachments = [], label }) => {
       ))}
 
       {downloadError ? (
-        <Text color="red.200" fontSize="sm">
+        <Text color="red.700" fontSize="sm">
           {downloadError}
         </Text>
       ) : null}

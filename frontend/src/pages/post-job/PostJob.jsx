@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@apollo/client';
 import { Box, Button, Grid, Heading, HStack, Stack, Text, VStack } from '@chakra-ui/react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageShell from '../../components/ui/PageShell.jsx';
+import { greenSolidButtonStyles, textUnderlineButtonStyles } from '../../components/ui/buttonStyles.js';
 import { pageAccents } from '@/common.js';
 import { toApiUrl } from '@/config/api.js';
 import { GET_JOB, GET_SKILL_TAXONOMY, PUBLISH_JOB, SAVE_JOB_DRAFT, UPDATE_JOB } from '@/graphql/queries.js';
@@ -899,12 +900,12 @@ const PostJob = () => {
 
   if (loadingJob) {
     return (
-      <PageShell accents={pageAccents} maxW="720px" py={{ base: 8, md: 12 }} bg="rgba(2, 6, 23, 1)">
+      <PageShell accents={pageAccents} maxW="720px" py={{ base: 8, md: 12 }} bg="bg.canvas">
         <VStack align="stretch" gap={4} pt={{ base: '64px', md: '88px' }}>
-          <Heading color="white" size="lg">
+          <Heading color="fg.default" size="lg">
             {isEditingPosting ? 'Loading posting' : 'Loading draft'}
           </Heading>
-          <Text color="rgba(226, 232, 240, 0.68)">
+          <Text color="fg.muted">
             {isEditingPosting
               ? 'We are pulling your posted job into the editor.'
               : 'We are pulling your saved job draft into the editor.'}
@@ -920,19 +921,19 @@ const PostJob = () => {
     routeJobCannotOpen
   ) {
     return (
-      <PageShell accents={pageAccents} maxW="720px" py={{ base: 8, md: 12 }} bg="rgba(2, 6, 23, 1)">
+      <PageShell accents={pageAccents} maxW="720px" py={{ base: 8, md: 12 }} bg="bg.canvas">
         <VStack align="stretch" gap={5} pt={{ base: '64px', md: '88px' }}>
-          <Heading color="white" size="lg">
+          <Heading color="fg.default" size="lg">
             {routeJobErrorTitle}
           </Heading>
-          <Text color="rgba(226, 232, 240, 0.68)">
+          <Text color="fg.muted">
             {jobLoadError?.message || routeJobErrorMessage}
           </Text>
           <Button
             type="button"
             alignSelf="start"
             borderRadius="full"
-            colorPalette="green"
+            
             onClick={() => navigate('/dashboard')}
           >
             Back to dashboard
@@ -949,14 +950,14 @@ const PostJob = () => {
       py={{ base: 6, md: 8 }}
       px={{ base: 4, md: 8 }}
       pb={isReviewing ? { base: 8, md: 12 } : { base: '210px', md: '190px' }}
-      bg="rgba(2, 6, 23, 1)"
+      bg="bg.canvas"
       h={{ base: 'auto', lg: isReviewing ? 'auto' : '100vh' }}
       minH="100vh"
       // Allow the form column to scroll on tall steps (budget + payment protection).
       overflow={{ base: 'auto', lg: isReviewing ? 'auto' : 'hidden' }}
     >
       {isReviewing ? (
-        <VStack align="stretch" gap={{ base: 6, md: 8 }} pt={{ base: '48px', md: '68px' }}>
+        <VStack align="stretch" gap={{ base: 6, md: 8 }}>
           <Stack
             direction={{ base: 'column', md: 'row' }}
             align={{ base: 'stretch', md: 'end' }}
@@ -964,13 +965,10 @@ const PostJob = () => {
             gap={5}
           >
             <Box>
-              <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" fontWeight="medium" mb={3}>
-                Job Post
-              </Text>
-              <Heading as="h1" size={{ base: '3xl', md: '4xl' }} color="white" letterSpacing="0">
+              <Heading as="h1" size={{ base: '3xl', md: '4xl' }} color="fg.default" letterSpacing="0">
                 {isEditingPosting ? 'Edit job posting' : 'Review your job post'}
               </Heading>
-              <Text color="rgba(226, 232, 240, 0.7)" fontSize="sm" mt={3} maxW="44rem">
+              <Text color="fg.subtle" fontSize="sm" mt={3} maxW="44rem">
                 {isEditingPosting
                   ? 'Update the live posting details candidates see, then save your changes.'
                   : 'Make final edits to the details candidates will see before publishing.'}
@@ -980,45 +978,27 @@ const PostJob = () => {
             <HStack gap={3} justify={{ base: 'stretch', md: 'flex-end' }} flexWrap="wrap">
               <Button
                 type="button"
-                variant="ghost"
-                color="rgba(226, 232, 240, 0.78)"
                 flex={{ base: '1', md: '0 0 auto' }}
                 onClick={() => navigate('/dashboard')}
-                _hover={{ bg: 'rgba(148, 163, 184, 0.1)', color: 'white' }}
+                {...textUnderlineButtonStyles}
               >
                 Exit
               </Button>
               <Button
                 type="button"
-                variant="outline"
-                borderColor="rgba(148, 163, 184, 0.28)"
-                color="white"
                 flex={{ base: '1', md: '0 0 auto' }}
                 onClick={isEditingPosting ? () => navigate('/dashboard') : handleBack}
-                _hover={{
-                  bg: 'rgba(148, 163, 184, 0.1)',
-                  borderColor: 'rgba(226, 232, 240, 0.44)',
-                }}
+                {...textUnderlineButtonStyles}
               >
                 Back
               </Button>
               <Button
                 type="button"
-                bgGradient="to-r"
-                gradientFrom="green.300"
-                gradientTo="cyan.400"
-                color="gray.950"
-                fontWeight="bold"
-                borderRadius="full"
                 px={6}
                 flex={{ base: '1', md: '0 0 auto' }}
                 onClick={isEditingPosting ? handleSavePosting : handleSubmitJob}
                 disabled={reviewActionLoading}
-                _hover={{
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 18px 34px rgba(74, 222, 128, 0.24)',
-                }}
-                _active={{ transform: 'translateY(0)' }}
+                {...greenSolidButtonStyles}
               >
                 {reviewActionLabel}
               </Button>
@@ -1054,6 +1034,7 @@ const PostJob = () => {
               maxH={{ base: 'none', lg: '100%' }}
               overflowY={{ base: 'visible', lg: 'auto' }}
               overscrollBehavior="contain"
+              pl={{ base: 0, lg: 1 }}
               pr={{ base: 0, lg: 3 }}
               pb={{ base: 4, lg: 10 }}
               css={{

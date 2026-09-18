@@ -7,6 +7,7 @@ import {
 import GlassPanel from '../components/ui/GlassPanel';
 import PageShell from '../components/ui/PageShell';
 import SectionEyebrow from '../components/ui/SectionEyebrow';
+import { greenSolidButtonStyles } from '../components/ui/buttonStyles.js';
 
 const pageAccents = [
   {
@@ -28,15 +29,15 @@ const pageAccents = [
 ];
 
 const inputStyles = {
-  bg: 'rgba(15, 23, 42, 0.5)',
+  bg: 'bg.muted',
   border: '1px solid',
-  borderColor: 'rgba(148, 163, 184, 0.2)',
-  color: 'white',
-  borderRadius: '18px',
+  borderColor: 'border.default',
+  color: 'fg.default',
+  borderRadius: '12px',
   h: '56px',
-  _placeholder: { color: 'rgba(226, 232, 240, 0.38)' },
-  _hover: { borderColor: 'rgba(74, 222, 128, 0.42)' },
-  _focus: { borderColor: 'green.300', boxShadow: '0 0 0 1px rgba(74, 222, 128, 0.24)' },
+  _placeholder: { color: 'fg.subtle' },
+  _hover: { borderColor: 'ink.600' },
+  _focus: { borderColor: 'ink.900', boxShadow: '0 0 0 1px #141413' },
 };
 
 const Register = () => {
@@ -88,19 +89,19 @@ const Register = () => {
         >
           <VStack gap={6} align="stretch">
             <Box>
-              <Text color="green.200" fontSize="sm" fontWeight="semibold" mb={2}>
+              <Text color="fg.muted" fontSize="sm" fontWeight="semibold" mb={2}>
                 Create account
               </Text>
               <Heading
                 as="h1"
                 size="2xl"
-                color="white"
+                color="fg.default"
                 letterSpacing="-0.03em"
                 mb={2}
               >
                 Join the hiring network
               </Heading>
-              <Text color="rgba(226, 232, 240, 0.72)" fontSize="md">
+              <Text color="fg.muted" fontSize="md">
                 Start as a freelancer or client and keep payments transparent from day one.
               </Text>
             </Box>
@@ -115,7 +116,7 @@ const Register = () => {
             <form onSubmit={handleSubmit}>
               <VStack gap={5}>
                 <Field.Root required>
-                  <Field.Label color="white" fontWeight="semibold">
+                  <Field.Label color="fg.default" fontWeight="semibold">
                     Email Address
                   </Field.Label>
                   <Input
@@ -129,7 +130,7 @@ const Register = () => {
                 </Field.Root>
 
                 <Field.Root required>
-                  <Field.Label color="white" fontWeight="semibold">
+                  <Field.Label color="fg.default" fontWeight="semibold">
                     Username
                   </Field.Label>
                   <Input
@@ -143,7 +144,7 @@ const Register = () => {
                 </Field.Root>
 
                 <Field.Root required>
-                  <Field.Label color="white" fontWeight="semibold">
+                  <Field.Label color="fg.default" fontWeight="semibold">
                     Password
                   </Field.Label>
                   <Input
@@ -157,7 +158,7 @@ const Register = () => {
                 </Field.Root>
 
                 <Field.Root required>
-                  <Field.Label color="white" fontWeight="semibold" mb={3}>
+                  <Field.Label color="fg.default" fontWeight="semibold" mb={3}>
                     Choose your side
                   </Field.Label>
                   <RadioGroup.Root
@@ -203,10 +204,10 @@ const Register = () => {
                               color: 'gray.900',
                             }}
                           />
-                          <RadioGroup.ItemText color="white" fontWeight="semibold">
+                          <RadioGroup.ItemText color="fg.default" fontWeight="semibold">
                             Freelancer
                           </RadioGroup.ItemText>
-                          <Text color="rgba(226, 232, 240, 0.7)" fontSize="sm">
+                          <Text color="fg.subtle" fontSize="sm">
                             Find projects, submit bids, and receive escrow-backed payouts.
                           </Text>
                         </VStack>
@@ -248,10 +249,10 @@ const Register = () => {
                               color: 'gray.900',
                             }}
                           />
-                          <RadioGroup.ItemText color="white" fontWeight="semibold">
+                          <RadioGroup.ItemText color="fg.default" fontWeight="semibold">
                             Client
                           </RadioGroup.ItemText>
-                          <Text color="rgba(226, 232, 240, 0.7)" fontSize="sm">
+                          <Text color="fg.subtle" fontSize="sm">
                             Post jobs, compare talent, and release payment when work is approved.
                           </Text>
                         </VStack>
@@ -264,21 +265,8 @@ const Register = () => {
                   type="submit"
                   w="full"
                   h="58px"
-                  borderRadius="18px"
-                  bgGradient="to-r"
-                  gradientFrom="green.300"
-                  gradientTo="cyan.400"
-                  color="gray.950"
-                  fontWeight="bold"
-                  _hover={{
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 18px 34px rgba(74, 222, 128, 0.26)',
-                  }}
-                  _active={{
-                    transform: 'translateY(0)',
-                  }}
                   loading={loading}
-                  transition="all 0.2s"
+                  {...greenSolidButtonStyles}
                 >
                   {loading ? 'Creating account...' : 'Create Account'}
                 </Button>
@@ -286,14 +274,14 @@ const Register = () => {
             </form>
 
             <Box textAlign="center" pt={2}>
-              <Text color="rgba(226, 232, 240, 0.72)">
+              <Text color="fg.muted">
                 Already have an account?{' '}
                 <Text
                   as={Link}
                   to="/login"
-                  color="green.200"
+                  color="fg.muted"
                   fontWeight="semibold"
-                  _hover={{ color: 'green.100', textDecoration: 'underline' }}
+                  _hover={{ color: 'fg.default', textDecoration: 'underline' }}
                 >
                   Login here
                 </Text>
@@ -313,7 +301,7 @@ const Register = () => {
             <VStack align="start" gap={4} maxW="580px">
               <Heading
                 size={{ base: '2xl', md: '3xl' }}
-                color="white"
+                color="fg.default"
                 lineHeight="1.02"
                 letterSpacing="-0.03em"
               >
@@ -323,7 +311,7 @@ const Register = () => {
                 <br />
                 One shared trust layer.
               </Heading>
-              <Text color="rgba(226, 232, 240, 0.76)" fontSize={{ base: 'md', md: 'lg' }}>
+              <Text color="fg.muted" fontSize={{ base: 'md', md: 'lg' }}>
                 Build an Upwork-style flow where identity, payment custody, and project delivery
                 feel simpler and more transparent.
               </Text>
@@ -332,25 +320,25 @@ const Register = () => {
             <Box
               w="full"
               borderRadius="28px"
-              bg="linear-gradient(135deg, rgba(22, 101, 52, 0.2), rgba(15, 23, 42, 0.86))"
+              bg="bg.canvas"
               border="1px solid"
-              borderColor="rgba(148, 163, 184, 0.14)"
+              borderColor="border.default"
               p={{ base: 5, md: 6 }}
             >
               <VStack align="start" gap={4}>
-                <Text color="white" fontSize="lg" fontWeight="semibold">
+                <Text color="fg.default" fontSize="lg" fontWeight="semibold">
                   What this account unlocks
                 </Text>
                 <Stack direction={{ base: 'column', md: 'row' }} gap={4} w="full">
                   <Box flex={1} p={4} borderRadius="20px" bg="rgba(255, 255, 255, 0.04)">
-                    <Text color="green.200" fontWeight="semibold" mb={1}>For clients</Text>
-                    <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+                    <Text color="fg.muted" fontWeight="semibold" mb={1}>For clients</Text>
+                    <Text color="fg.muted" fontSize="sm">
                       Publish jobs, accept the right bid, and move funds into escrow.
                     </Text>
                   </Box>
                   <Box flex={1} p={4} borderRadius="20px" bg="rgba(255, 255, 255, 0.04)">
-                    <Text color="cyan.200" fontWeight="semibold" mb={1}>For freelancers</Text>
-                    <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm">
+                    <Text color="fg.muted" fontWeight="semibold" mb={1}>For freelancers</Text>
+                    <Text color="fg.muted" fontSize="sm">
                       Submit proposals, connect a wallet, and get paid with clearer guarantees.
                     </Text>
                   </Box>

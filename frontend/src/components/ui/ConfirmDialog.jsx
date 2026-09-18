@@ -1,18 +1,14 @@
 import React from 'react';
 import { Badge, Button, Dialog, Portal, Text, VStack } from '@chakra-ui/react';
-import { subtlePillButtonStyles } from './buttonStyles.js';
+import { greenSolidButtonStyles, subtlePillButtonStyles } from './buttonStyles.js';
 
-// Reusable confirm modal (glass theme) for irreversible actions such as
-// hiring a freelancer, releasing escrowed payment, or removing a job.
-// Pass `headerBadge` ({ label, colorPalette }) to show a status pill above the
-// title.
 const ConfirmDialog = ({
   open,
   title,
   description,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
-  colorPalette = 'green',
+  colorPalette: _colorPalette = 'green',
   headerBadge,
   loading = false,
   confirmDisabled = false,
@@ -33,27 +29,29 @@ const ConfirmDialog = ({
     size={{ base: 'sm', md: 'md' }}
   >
     <Portal>
-      <Dialog.Backdrop bg="rgba(2, 6, 23, 0.78)" backdropFilter="blur(8px)" />
+      <Dialog.Backdrop bg="rgba(20, 20, 19, 0.35)" />
       <Dialog.Positioner px={{ base: 4, md: 6 }}>
         <Dialog.Content
-          bg="rgba(8, 13, 25, 0.98)"
+          bg="bg.panel"
           border="1px solid"
-          borderColor="rgba(148, 163, 184, 0.22)"
-          borderRadius="26px"
-          boxShadow="0 28px 80px rgba(0, 0, 0, 0.48)"
-          color="white"
+          borderColor="border.default"
+          borderRadius="16px"
+          boxShadow="0 16px 40px rgba(20, 20, 19, 0.08)"
+          color="fg.default"
           maxW="460px"
         >
           <Dialog.Header px={{ base: 5, md: 6 }} pt={{ base: 5, md: 6 }} pb={2}>
             <VStack align="start" gap={3}>
               {headerBadge ? (
                 <Badge
-                  colorPalette={headerBadge.colorPalette || 'gray'}
-                  variant="subtle"
-                  borderRadius="full"
+                  variant="outline"
+                  color="fg.muted"
+                  borderColor="border.default"
+                  bg="transparent"
+                  borderRadius="8px"
                   px={3}
                   py={1}
-                  fontWeight="semibold"
+                  fontWeight="medium"
                 >
                   {headerBadge.label}
                 </Badge>
@@ -66,12 +64,12 @@ const ConfirmDialog = ({
 
           <Dialog.Body px={{ base: 5, md: 6 }} py={3}>
             <VStack align="stretch" gap={3}>
-              <Text color="rgba(226, 232, 240, 0.72)" lineHeight="1.7">
+              <Text color="fg.muted" lineHeight="1.7">
                 {description}
               </Text>
               {children}
               {error ? (
-                <Text color="red.200" fontSize="sm" role="alert">
+                <Text color="red.700" fontSize="sm" role="alert">
                   {error.message}
                 </Text>
               ) : null}
@@ -84,12 +82,10 @@ const ConfirmDialog = ({
             </Button>
             <Button
               type="button"
-              borderRadius="full"
-              colorPalette={colorPalette}
-              fontWeight="bold"
               loading={loading}
               disabled={confirmDisabled}
               onClick={onConfirm}
+              {...greenSolidButtonStyles}
             >
               {confirmLabel}
             </Button>

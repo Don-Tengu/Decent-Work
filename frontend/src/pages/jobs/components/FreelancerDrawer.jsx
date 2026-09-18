@@ -30,11 +30,11 @@ import {
 import { getPaymentActionFlags } from '../paymentActions.js';
 
 const drawerContentStyles = {
-  bg: 'rgba(8, 13, 25, 0.98)',
-  color: 'white',
+  bg: 'bg.canvas',
+  color: 'fg.default',
   borderLeft: '1px solid',
-  borderColor: 'rgba(148, 163, 184, 0.2)',
-  boxShadow: '0 28px 80px rgba(0, 0, 0, 0.48)',
+  borderColor: 'border.default',
+  boxShadow: '0 12px 32px rgba(20, 20, 19, 0.08)',
 };
 
 const Section = ({ label, children }) => (
@@ -89,7 +89,7 @@ const FreelancerDrawer = ({
       unmountOnExit
     >
       <Portal>
-        <Drawer.Backdrop bg="rgba(2, 6, 23, 0.78)" backdropFilter="blur(8px)" />
+        <Drawer.Backdrop bg="rgba(20, 20, 19, 0.35)" backdropFilter="blur(8px)" />
         <Drawer.Positioner>
           <Drawer.Content {...drawerContentStyles}>
             <Drawer.CloseTrigger asChild>
@@ -105,8 +105,8 @@ const FreelancerDrawer = ({
                 minW="40px"
                 w="40px"
                 h="40px"
-                color="rgba(226, 232, 240, 0.76)"
-                _hover={{ bg: 'rgba(255, 255, 255, 0.08)', color: 'white' }}
+                color="fg.muted"
+                _hover={{ bg: 'rgba(255, 255, 255, 0.08)', color: 'fg.default' }}
               >
                 <X size={22} />
               </IconButton>
@@ -121,10 +121,10 @@ const FreelancerDrawer = ({
               <HStack gap={4} align="center" pr={10}>
                 <UserAvatar user={freelancer} size="xl" flex="0 0 auto" />
                 <Box minW="0">
-                  <Drawer.Title fontSize="xl" fontWeight="bold" color="white" lineHeight="1.2">
+                  <Drawer.Title fontSize="xl" fontWeight="bold" color="fg.default" lineHeight="1.2">
                     {name}
                   </Drawer.Title>
-                  <Text color="rgba(226, 232, 240, 0.56)" fontSize="sm">
+                  <Text color="fg.muted" fontSize="sm">
                     {formatRole(freelancer?.role)}
                   </Text>
                 </Box>
@@ -141,17 +141,17 @@ const FreelancerDrawer = ({
 
                 <HStack gap={3} flexWrap="wrap" align="center">
                   {amount ? (
-                    <Badge colorPalette="green" borderRadius="full" px={3} py={1} fontSize="md">
+                    <Badge  borderRadius="full" px={3} py={1} fontSize="md">
                       {amount}
                     </Badge>
                   ) : null}
-                  <HStack gap={1.5} color="rgba(226, 232, 240, 0.6)" fontSize="sm">
+                  <HStack gap={1.5} color="fg.muted" fontSize="sm">
                     <Clock size={14} />
                     <Text>{formatDeliveryTime(bid?.deliveryTime)}</Text>
                   </HStack>
                   <BidStatusBadge status={bid?.status} />
                   {paymentNote ? (
-                    <Text color="rgba(134, 239, 172, 0.9)" fontSize="sm" fontWeight="medium">
+                    <Text color="fg.muted" fontSize="sm" fontWeight="medium">
                       {paymentNote}
                     </Text>
                   ) : null}
@@ -159,21 +159,21 @@ const FreelancerDrawer = ({
 
                 {bio ? (
                   <Section label="Overview">
-                    <Text color="rgba(226, 232, 240, 0.78)" lineHeight="1.7" whiteSpace="pre-line" overflowWrap="anywhere">
+                    <Text color="fg.muted" lineHeight="1.7" whiteSpace="pre-line" overflowWrap="anywhere">
                       {bio}
                     </Text>
                   </Section>
                 ) : null}
 
                 <Section label="Cover letter">
-                  <Text color="rgba(226, 232, 240, 0.82)" lineHeight="1.8" whiteSpace="pre-line" overflowWrap="anywhere">
+                  <Text color="fg.muted" lineHeight="1.8" whiteSpace="pre-line" overflowWrap="anywhere">
                     {bid?.proposal}
                   </Text>
                 </Section>
 
                 {bid?.relevantExperience ? (
                   <Section label="Recent experience">
-                    <Text color="rgba(226, 232, 240, 0.78)" lineHeight="1.8" whiteSpace="pre-line" overflowWrap="anywhere">
+                    <Text color="fg.muted" lineHeight="1.8" whiteSpace="pre-line" overflowWrap="anywhere">
                       {bid.relevantExperience}
                     </Text>
                   </Section>

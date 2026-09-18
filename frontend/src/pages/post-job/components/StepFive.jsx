@@ -12,6 +12,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { AlertCircle, FileText, Paperclip, Trash2 } from 'lucide-react';
+import { greenSolidButtonStyles } from '../../../components/ui/buttonStyles.js';
 import {
   formatAttachmentSize,
   getAttachmentDisplayName,
@@ -48,7 +49,7 @@ const StepFive = ({
   return (
     <VStack align="stretch" gap={7}>
       <Field.Root required invalid={!!descriptionError}>
-        <Field.Label color="white" fontWeight="semibold">
+        <Field.Label color="fg.default" fontWeight="semibold">
           Describe what you need
         </Field.Label>
         <Textarea
@@ -74,7 +75,7 @@ const StepFive = ({
         />
         <HStack justify="space-between" gap={3} align="start" flexWrap="wrap">
           {descriptionError ? (
-            <Field.ErrorText color="red.300" fontWeight="semibold">
+            <Field.ErrorText color="red.700" fontWeight="semibold">
               <HStack gap={2} align="center">
                 <AlertCircle size={18} />
                 <span>{descriptionError}</span>
@@ -105,27 +106,23 @@ const StepFive = ({
         <HStack align="center" gap={4} flexWrap="wrap">
           <Button
             type="button"
-            variant="outline"
-            borderRadius="full"
-            borderColor="rgba(226, 232, 240, 0.34)"
-            color="white"
             px={5}
             disabled={!hasFileSlots}
             onClick={handleAttachClick}
-            _hover={{ borderColor: 'green.300', bg: 'rgba(34, 197, 94, 0.1)' }}
+            {...greenSolidButtonStyles}
           >
             <HStack gap={2}>
               <Paperclip size={19} />
               <span>Attach file</span>
             </HStack>
           </Button>
-          <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm">
+          <Text color="fg.muted" fontSize="sm">
             Max file size: 100MB
           </Text>
         </HStack>
 
         {attachmentError ? (
-          <Text color="red.300" fontSize="sm" fontWeight="semibold" role="alert">
+          <Text color="red.700" fontSize="sm" fontWeight="semibold" role="alert">
             <HStack gap={2} align="center">
               <AlertCircle size={18} />
               <span>{attachmentError}</span>
@@ -164,7 +161,7 @@ const StepFive = ({
                   gap={4}
                   border="1px solid"
                   borderColor={isOversized ? 'rgba(248, 113, 113, 0.62)' : 'rgba(148, 163, 184, 0.2)'}
-                  bg="rgba(15, 23, 42, 0.46)"
+                  bg="bg.muted"
                   borderRadius="16px"
                   px={4}
                   py={3}
@@ -175,15 +172,15 @@ const StepFive = ({
                       borderRadius="full"
                       display="grid"
                       placeItems="center"
-                      bg="rgba(34, 211, 238, 0.12)"
-                      color="cyan.200"
+                      bg="bg.muted"
+                      color="fg.muted"
                       flex="0 0 auto"
                     >
                       <FileText size={18} />
                     </Box>
                     <Box minW="0">
                       <Text
-                        color="white"
+                        color="fg.default"
                         fontWeight="semibold"
                         overflow="hidden"
                         textOverflow="ellipsis"
@@ -201,7 +198,7 @@ const StepFive = ({
                     aria-label={`Remove ${attachmentName}`}
                     type="button"
                     variant="ghost"
-                    color="rgba(226, 232, 240, 0.72)"
+                    color="fg.muted"
                     borderRadius="full"
                     minW="36px"
                     w="36px"
@@ -218,7 +215,7 @@ const StepFive = ({
         ) : null}
 
         {submitError ? (
-          <Text color="red.300" fontSize="sm" fontWeight="medium">
+          <Text color="red.700" fontSize="sm" fontWeight="medium">
             {submitError}
           </Text>
         ) : null}

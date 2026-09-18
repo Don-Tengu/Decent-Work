@@ -12,10 +12,10 @@ const UserAvatar = ({ user, size = 'md', ...props }) => {
   return (
     <Avatar.Root
       size={size}
-      bg="rgba(125, 211, 252, 0.16)"
-      color="cyan.100"
+      bg="bg.muted"
+      color="fg.default"
       borderWidth="1px"
-      borderColor="rgba(125, 211, 252, 0.28)"
+      borderColor="border.default"
       {...props}
     >
       <Avatar.Fallback name={name} />

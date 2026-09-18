@@ -68,13 +68,13 @@ const WalletConnectionCard = ({
             py={1.5}
             borderRadius="full"
             border="1px solid"
-            borderColor="rgba(74, 222, 128, 0.35)"
-            bg="rgba(20, 83, 45, 0.28)"
+            borderColor="border.default"
+            bg="bg.canvas"
             maxW="100%"
           >
-            <CheckCircle2 size={15} color="var(--chakra-colors-green-200)" />
+            <CheckCircle2 size={15} color="#141413" />
             <Text
-              color="green.100"
+              color="fg.default"
               fontSize="sm"
               fontWeight="semibold"
               fontFamily="mono"
@@ -89,17 +89,17 @@ const WalletConnectionCard = ({
               minW="auto"
               h="auto"
               p={1}
-              color="rgba(226, 232, 240, 0.72)"
+              color="fg.muted"
               aria-label="Copy wallet address"
               onClick={handleCopy}
-              _hover={{ bg: 'rgba(255,255,255,0.08)', color: 'white' }}
+              _hover={{ bg: 'rgba(255,255,255,0.08)', color: 'fg.default' }}
             >
               {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
             </Button>
           </HStack>
         ) : (
           <Badge
-            colorPalette="yellow"
+            
             variant="subtle"
             borderRadius="full"
             px={3}
@@ -124,12 +124,12 @@ const WalletConnectionCard = ({
           </HStack>
         </Button>
         {error ? (
-          <Text color="red.300" fontSize="sm" w="full" textAlign={{ base: 'left', md: 'right' }}>
+          <Text color="red.700" fontSize="sm" w="full" textAlign={{ base: 'left', md: 'right' }}>
             {error}
           </Text>
         ) : null}
         {success && !error ? (
-          <Text color="green.300" fontSize="sm" w="full" textAlign={{ base: 'left', md: 'right' }}>
+          <Text color="fg.muted" fontSize="sm" w="full" textAlign={{ base: 'left', md: 'right' }}>
             {success}
           </Text>
         ) : null}
@@ -152,25 +152,27 @@ const WalletConnectionCard = ({
               borderRadius="14px"
               display="grid"
               placeItems="center"
-              bg={connected ? 'rgba(34, 197, 94, 0.16)' : 'rgba(34, 211, 238, 0.12)'}
-              color={connected ? 'green.200' : 'cyan.200'}
+              bg="bg.muted"
+              color="fg.default"
               flexShrink={0}
             >
               <Wallet size={20} />
             </Box>
             <Box minW="0">
-              <Text color="white" fontWeight="bold" fontSize="md">
-                Wallet
+              <Text color="fg.default" fontWeight="bold" fontSize="md">
+                {connected ? 'Wallet' : 'Wallet needed for escrow'}
               </Text>
-              <Text color="rgba(226, 232, 240, 0.58)" fontSize="sm" mt={0.5}>
+              <Text color="fg.muted" fontSize="sm" mt={0.5}>
                 {chainHint}
               </Text>
             </Box>
           </HStack>
           <Badge
-            colorPalette={connected ? 'green' : 'yellow'}
-            variant="subtle"
-            borderRadius="full"
+            variant="outline"
+            color="fg.muted"
+            borderColor="border.default"
+            bg="transparent"
+            borderRadius="8px"
             px={2.5}
             py={0.5}
             flexShrink={0}
@@ -179,26 +181,26 @@ const WalletConnectionCard = ({
           </Badge>
         </HStack>
 
-        <Text color="rgba(226, 232, 240, 0.72)" fontSize="sm" lineHeight="1.6">
+        <Text color="fg.muted" fontSize="sm" lineHeight="1.6">
           {roleCopy} Use MetaMask on the same network as the escrow contract.
         </Text>
 
         {connected ? (
           <Box
             border="1px solid"
-            borderColor="rgba(74, 222, 128, 0.28)"
-            bg="rgba(20, 83, 45, 0.22)"
+            borderColor="border.default"
+            bg="bg.muted"
             borderRadius="16px"
             px={4}
             py={3}
           >
             <HStack justify="space-between" align="center" gap={3}>
               <VStack align="start" gap={0.5} minW="0">
-                <Text color="rgba(226, 232, 240, 0.55)" fontSize="xs" fontWeight="semibold">
+                <Text color="fg.subtle" fontSize="xs" fontWeight="semibold">
                   Active address
                 </Text>
                 <Text
-                  color="white"
+                  color="fg.default"
                   fontFamily="mono"
                   fontSize="sm"
                   fontWeight="semibold"
@@ -219,17 +221,17 @@ const WalletConnectionCard = ({
                   size="sm"
                   variant="ghost"
                   borderRadius="full"
-                  color="rgba(226, 232, 240, 0.78)"
+                  color="fg.muted"
                   aria-label="Copy wallet address"
                   onClick={handleCopy}
-                  _hover={{ bg: 'rgba(255,255,255,0.08)', color: 'white' }}
+                  _hover={{ bg: 'rgba(255,255,255,0.08)', color: 'fg.default' }}
                 >
                   {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                 </Button>
               </HStack>
             </HStack>
             {copied ? (
-              <Text color="green.200" fontSize="xs" mt={2}>
+              <Text color="fg.muted" fontSize="xs" mt={2}>
                 Address copied
               </Text>
             ) : null}
@@ -252,12 +254,12 @@ const WalletConnectionCard = ({
         </Button>
 
         {error ? (
-          <Text color="red.300" fontSize="sm" lineHeight="1.5">
+          <Text color="red.700" fontSize="sm" lineHeight="1.5">
             {error}
           </Text>
         ) : null}
         {success && !error ? (
-          <Text color="green.300" fontSize="sm" lineHeight="1.5">
+          <Text color="fg.muted" fontSize="sm" lineHeight="1.5">
             {success}
           </Text>
         ) : null}

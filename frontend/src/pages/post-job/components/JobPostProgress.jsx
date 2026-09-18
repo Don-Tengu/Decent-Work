@@ -4,21 +4,21 @@ import { Box, HStack, Progress, Text, VStack } from '@chakra-ui/react';
 const JobPostProgress = ({ steps, activeStepIndex, completedStepCount, progressValue }) => (
   <VStack align="stretch" gap={3}>
     <HStack justify="space-between" align="center" gap={4} flexWrap="wrap">
-      <Text color="white" fontWeight="semibold">
+      <Text color="fg.default" fontWeight="semibold">
         Step {activeStepIndex + 1} of {steps.length}
       </Text>
-      <Text color="rgba(226, 232, 240, 0.68)" fontSize="sm">
+      <Text color="fg.muted" fontSize="sm">
         {steps[activeStepIndex].title}
       </Text>
-      <Text color="rgba(134, 239, 172, 0.92)" fontSize="sm" fontWeight="medium">
+      <Text color="fg.muted" fontSize="sm" fontWeight="medium">
         {completedStepCount}/{steps.length} complete
       </Text>
     </HStack>
 
-    <Progress.Root value={progressValue} colorPalette="green" variant="subtle" size="sm">
+    <Progress.Root value={progressValue}  variant="subtle" size="sm">
       <Progress.Track
         borderRadius="full"
-        bg="rgba(255, 255, 255, 0.08)"
+        bg="paper.200"
         h="10px"
         overflow="hidden"
       >
@@ -34,13 +34,7 @@ const JobPostProgress = ({ steps, activeStepIndex, completedStepCount, progressV
         return (
           <Box key={step.id} flex="1" minW="0">
             <Text
-              color={
-                isActive
-                  ? 'white'
-                  : isCompleted
-                    ? 'rgba(134, 239, 172, 0.92)'
-                    : 'rgba(226, 232, 240, 0.42)'
-              }
+              color={isActive ? 'fg.default' : isCompleted ? 'fg.muted' : 'fg.subtle'}
               fontSize="xs"
               fontWeight={isActive ? 'semibold' : 'medium'}
               textAlign="center"

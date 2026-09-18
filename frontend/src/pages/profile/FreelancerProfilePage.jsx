@@ -148,10 +148,10 @@ const FreelancerProfilePage = () => {
                 <UserAvatar user={profileUser} size="2xl" justifySelf={{ base: 'start', md: 'center' }} />
                 <VStack align="stretch" gap={4} minW="0">
                   <VStack align="stretch" gap={1}>
-                    <Heading color="white" size={{ base: 'xl', md: '2xl' }} letterSpacing="-0.02em">
+                    <Heading color="fg.default" size={{ base: 'xl', md: '2xl' }} letterSpacing="-0.02em">
                       {name}
                     </Heading>
-                    <Text color="cyan.200" fontWeight="medium">
+                    <Text color="fg.muted" fontWeight="medium">
                       {formatRole(profileUser.role)}
                     </Text>
                   </VStack>
@@ -164,7 +164,7 @@ const FreelancerProfilePage = () => {
 
                   {bio ? (
                     <Text
-                      color="rgba(226, 232, 240, 0.78)"
+                      color="fg.muted"
                       lineHeight="1.8"
                       whiteSpace="pre-line"
                       overflowWrap="anywhere"
@@ -172,7 +172,7 @@ const FreelancerProfilePage = () => {
                       {bio}
                     </Text>
                   ) : (
-                    <Text color="rgba(226, 232, 240, 0.5)" fontSize="sm">
+                    <Text color="fg.subtle" fontSize="sm">
                       This freelancer hasn&apos;t added an overview yet.
                     </Text>
                   )}
